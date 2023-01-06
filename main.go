@@ -3,81 +3,259 @@ package main
 import (
 	"log"
 	"os"
+	"unicode"
 
 	"github.com/gdamore/tcell"
 )
 
+func logToFile(s string) {
+	f, err := os.OpenFile("text.log",
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println(err)
+	}
+	defer f.Close()
+	if _, err := f.WriteString(s + "\n"); err != nil {
+		log.Println(err)
+	}
+}
+
+type UI struct {
+	screen  tcell.Screen
+	lists   []List
+	current int
+}
+
+func newUI() UI {
+	s, err := tcell.NewScreen()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := s.Init(); err != nil {
+		log.Fatal(err)
+	}
+	return UI{screen: s}
+}
+
+func (ui *UI) clear() {
+	ui.screen.Clear()
+}
+
+func (ui *UI) show() {
+	ui.screen.Show()
+}
+
+func (ui *UI) addList() {
+	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
+	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
+	estyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorBlack)
+	ui.screen.SetStyle(dstyle)
+	todos := []string{
+		"New Entry",
+	}
+	list := List{row: 0, col: 0, edit: false, items: todos, done: []bool{false}, dstyle: dstyle, hstyle: hstyle, estyle: estyle, screen: ui.screen}
+	ui.lists = append(ui.lists, list)
+}
+
+func (ui *UI) currentList() *List {
+	return &ui.lists[ui.current]
+}
+
+func (ui *UI) handleEvent(ev tcell.Event) {
+	list := ui.currentList()
+	switch ev := ev.(type) {
+	case *tcell.EventResize:
+		ui.screen.Sync()
+	case *tcell.EventKey:
+		if ev.Key() == tcell.KeyCtrlC {
+			ui.screen.Fini()
+			os.Exit(0)
+		}
+		if list.edit {
+			list.addRune(ev.Rune())
+			if ev.Rune() == 127 {
+				list.deleteRune()
+			}
+			if ev.Key() == tcell.KeyEscape {
+				list.exitEdit()
+			}
+		} else {
+			if ev.Rune() == 'j' {
+				list.down()
+			}
+			if ev.Rune() == 'k' {
+				list.up()
+			}
+			if ev.Rune() == 'J' {
+				list.switchDown()
+			}
+			if ev.Rune() == 'K' {
+				list.switchUp()
+			}
+			if ev.Rune() == 'd' {
+				list.delete()
+			}
+			if ev.Rune() == 'n' {
+				list.add()
+			}
+			if ev.Rune() == 'e' {
+				list.enterEdit()
+			}
+			if ev.Rune() == 13 {
+				list.markItem()
+			}
+		}
+	}
+}
+
+type List struct {
+	row    int
+	col    int
+	edit   bool
+	items  []string
+	done   []bool
+	dstyle tcell.Style
+	hstyle tcell.Style
+	estyle tcell.Style
+	screen tcell.Screen
+}
+
+func (l *List) enterEdit() {
+	l.edit = true
+	l.items[l.row] = " "
+}
+
+func (l *List) exitEdit() {
+	l.edit = false
+	l.col = 0
+}
+
+func (l *List) render() {
+	for row, item := range l.items {
+		var style tcell.Style
+		if row == l.row {
+			if l.edit {
+				style = l.estyle
+			} else {
+				style = l.hstyle
+			}
+		} else {
+			style = l.dstyle
+		}
+		var marker rune
+		if l.done[row] {
+			marker = 'X'
+		} else {
+			marker = ' '
+		}
+		l.screen.SetContent(0, row, '[', nil, l.dstyle)
+		l.screen.SetContent(1, row, marker, nil, l.dstyle)
+		l.screen.SetContent(2, row, ']', nil, l.dstyle)
+		for col, r := range []rune(item) {
+			l.screen.SetContent(col+4, row, r, nil, style)
+		}
+	}
+}
+
+func (l *List) down() {
+	if l.row+1 <= len(l.items)-1 {
+		l.row++
+	}
+}
+
+func (l *List) up() {
+	if l.row-1 >= 0 {
+		l.row--
+	}
+}
+
+func (l *List) switchUp() {
+	i := l.row
+	if i-1 >= 0 {
+		l.items[i], l.items[i-1] = l.items[i-1], l.items[i]
+		l.done[i], l.done[i-1] = l.done[i-1], l.done[i]
+		l.row--
+	}
+}
+
+func (l *List) switchDown() {
+	i := l.row
+	if i+1 <= len(l.items)-1 {
+		l.items[i], l.items[i+1] = l.items[i+1], l.items[i]
+		l.done[i], l.done[i+1] = l.done[i+1], l.done[i]
+		l.row++
+	}
+}
+
+func (l *List) delete() {
+	if len(l.items) == 1 {
+		l.items = nil
+		l.done = nil
+		return
+	}
+	i := l.row
+	if l.row == len(l.items)-1 {
+		l.row--
+	}
+	newItems := l.items[:i]
+	newItems = append(newItems, l.items[i+1:]...)
+	l.items = newItems
+	newDone := l.done[:i]
+	newDone = append(newDone, l.done[i+1:]...)
+	l.done = newDone
+}
+
+func (l *List) add() {
+	newItem := "New Entry"
+	i := l.row
+	nitems := len(l.items)
+	if nitems == 0 || nitems-1 == i {
+		l.done = append(l.done, false)
+		l.items = append(l.items, newItem)
+		return
+	}
+	l.items = append(l.items[:i+1], l.items[i:]...)
+	l.items[i+1] = newItem
+	l.done = append(l.done[:i+1], l.done[i:]...)
+	l.done[i+1] = false
+}
+
+func (l *List) addRune(r rune) {
+	if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '_' || r == '.' || r == '-' {
+		if len(l.items[l.row]) == 1 && l.items[l.row][0] == ' ' {
+			l.items[l.row] = string(r)
+		} else {
+
+			l.items[l.row] += string(r)
+		}
+		l.col++
+	}
+}
+
+func (l *List) deleteRune() {
+	last := len(l.items[l.row]) - 1
+	if last > 0 {
+		l.items[l.row] = l.items[l.row][:last]
+		l.col--
+	}
+	if last == 0 {
+		l.items[l.row] = " "
+	}
+}
+
+func (l *List) markItem() {
+	l.done[l.row] = !l.done[l.row]
+}
+
 func main() {
-    s, err := tcell.NewScreen()
-    if err != nil {
-        log.Fatal(err)
-    }
-    if err := s.Init(); err != nil {
-        log.Fatal(err)
-    }
+	ui := newUI()
+	ui.addList()
 
-    current := 0
-
-    defStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-    hiStyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
-    s.SetStyle(defStyle)
-
-    s.Clear()
-
-    todos := []string{
-        "Clean bedroom",
-        "Practice piano",
-        "Prepare dinner",
-    }
-
-    renderTodos(current, todos, s, defStyle, hiStyle)   
-
-    for {
-        s.Show()
-        ev := s.PollEvent()
-
-        switch ev := ev.(type) {
-        case *tcell.EventResize:
-            s.Sync()
-        case *tcell.EventKey: 
-            if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
-                s.Fini()
-                os.Exit(0)
-            }
-            if ev.Rune() == 'j' {
-                if current + 1 <= len(todos) - 1 {
-                    current++
-                    renderTodos(current, todos, s, defStyle, hiStyle)
-                }             
-            } 
-            if ev.Rune() == 'k' {
-                if current - 1 >= 0 {
-                    current--
-                    renderTodos(current, todos, s, defStyle, hiStyle)
-                }             
-            } 
-        
-        }
-    }
-}
-
-func deleteTodo(todos []string, index int) {
-
-}
-
-func renderTodos(current int, todos []string, s tcell.Screen, dstyle tcell.Style, hstyle tcell.Style) {
-    for row, todo := range todos {
-        if row == current {
-            renderLine(s, hstyle, row, todo)
-        } else {
-            renderLine(s, dstyle, row, todo)
-        }
-    }
-
-}
-
-func renderLine(s tcell.Screen, style tcell.Style, row int, line string) {
-    for col, r := range []rune(line) {
-        s.SetContent(col, row, r, nil, style)
-    }
+	for {
+		ui.clear()
+		ui.currentList().render()
+		ui.show()
+		ev := ui.screen.PollEvent()
+		ui.handleEvent(ev)
+	}
 }
