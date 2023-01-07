@@ -25,7 +25,7 @@ func (db *DB) init() error {
 	if err != nil {
 		return err
 	}
-	itemStatement := "CREATE TABLE IF NOT EXISTS item (id INTEGER PRIMARY KEY ASC, content TEXT, list_id INTEGER, FOREIGN KEY (list_id) REFERENCES list (id))"
+	itemStatement := "CREATE TABLE IF NOT EXISTS item (id INTEGER PRIMARY KEY ASC, position INTEGER, content TEXT, done INTEGER, list_id INTEGER, FOREIGN KEY (list_id) REFERENCES list (id))"
 	_, err = db.db.Exec(itemStatement)
 	if err != nil {
 		return err
@@ -76,8 +76,8 @@ func (db *DB) getLists() ([]List, error) {
 	return lists, nil
 }
 
-func (db *DB) createItem(item string, listID int) (int, error) {
-	stmt := fmt.Sprintf("INSERT INTO item (content, list_id) VALUES (\"%s\", %d) RETURNING id", item, listID)
+func (db *DB) createItem(content string, position int, listID int) (int, error) {
+	stmt := fmt.Sprintf("INSERT INTO item (content, position, done, list_id) VALUES (\"%s\", %d, %d, %d) RETURNING id", content, position, 0, listID)
   var id int
 	row := db.db.QueryRow(stmt)
   row.Scan(&id)

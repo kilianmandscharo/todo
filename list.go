@@ -88,7 +88,7 @@ func (l *List) switchDown() {
 }
 
 func (l *List) delete() {
-  l.ui.db.deleteItem(l.currentItem().id)
+	l.ui.db.deleteItem(l.currentItem().id)
 	if len(l.items) == 1 {
 		l.items = nil
 		return
@@ -103,13 +103,20 @@ func (l *List) delete() {
 }
 
 func (l *List) add() {
+	i := l.row
 	content := "New Entry"
-	id, _ := l.ui.db.createItem(content, l.ID)
+	var position int
+	if len(l.items) == 0 {
+		position = 0
+	} else {
+		position = i + 1
+    l.row++
+	}
+	id, _ := l.ui.db.createItem(content, position, l.ID)
 	newItem := Item{
 		id:      id,
 		content: content,
 	}
-	i := l.row
 	nitems := len(l.items)
 	if nitems == 0 || nitems-1 == i {
 		l.items = append(l.items, newItem)

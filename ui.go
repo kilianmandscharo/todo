@@ -56,7 +56,7 @@ func (ui *UI) load() {
 	for i := range lists {
 		lists[i].ui = ui
 		if len(lists[i].items) == 0 {
-			ui.db.createItem("New Entry", lists[i].ID)
+			ui.db.createItem("New Entry", 0 ,lists[i].ID)
 			lists[i].items = append(lists[i].items, Item{id: 1, content: "New Entry"})
 		}
 	}
