@@ -2,24 +2,29 @@ package main
 
 import (
 	"unicode"
+
 	"github.com/gdamore/tcell"
 )
 
 type List struct {
-	row    int
-	col    int
-	edit   bool
-	items  []string
-	done   []bool
-	dstyle tcell.Style
-	hstyle tcell.Style
-	estyle tcell.Style
-	screen tcell.Screen
+	ID    int
+	row   int
+	col   int
+	edit  bool
+	items []Item
+	ui    *UI
+}
+
+type Item struct {
+	id       int
+	position int
+	content  string
+	done     bool
 }
 
 func (l *List) enterEdit() {
 	l.edit = true
-	l.items[l.row] = " "
+	l.items[l.row].content = " "
 }
 
 func (l *List) exitEdit() {
@@ -32,24 +37,24 @@ func (l *List) render() {
 		var style tcell.Style
 		if row == l.row {
 			if l.edit {
-				style = l.estyle
+				style = l.ui.estyle
 			} else {
-				style = l.hstyle
+				style = l.ui.hstyle
 			}
 		} else {
-			style = l.dstyle
+			style = l.ui.dstyle
 		}
 		var marker rune
-		if l.done[row] {
+		if item.done {
 			marker = 'X'
 		} else {
 			marker = ' '
 		}
-		l.screen.SetContent(0, row, '[', nil, l.dstyle)
-		l.screen.SetContent(1, row, marker, nil, l.dstyle)
-		l.screen.SetContent(2, row, ']', nil, l.dstyle)
-		for col, r := range []rune(item) {
-			l.screen.SetContent(col+4, row, r, nil, style)
+		l.ui.screen.SetContent(0, row, '[', nil, l.ui.dstyle)
+		l.ui.screen.SetContent(1, row, marker, nil, l.ui.dstyle)
+		l.ui.screen.SetContent(2, row, ']', nil, l.ui.dstyle)
+		for col, r := range []rune(item.content) {
+			l.ui.screen.SetContent(col+4, row, r, nil, style)
 		}
 	}
 }
@@ -70,7 +75,6 @@ func (l *List) switchUp() {
 	i := l.row
 	if i-1 >= 0 {
 		l.items[i], l.items[i-1] = l.items[i-1], l.items[i]
-		l.done[i], l.done[i-1] = l.done[i-1], l.done[i]
 		l.row--
 	}
 }
@@ -79,15 +83,14 @@ func (l *List) switchDown() {
 	i := l.row
 	if i+1 <= len(l.items)-1 {
 		l.items[i], l.items[i+1] = l.items[i+1], l.items[i]
-		l.done[i], l.done[i+1] = l.done[i+1], l.done[i]
 		l.row++
 	}
 }
 
 func (l *List) delete() {
+  l.ui.db.deleteItem(l.currentItem().id)
 	if len(l.items) == 1 {
 		l.items = nil
-		l.done = nil
 		return
 	}
 	i := l.row
@@ -97,50 +100,52 @@ func (l *List) delete() {
 	newItems := l.items[:i]
 	newItems = append(newItems, l.items[i+1:]...)
 	l.items = newItems
-	newDone := l.done[:i]
-	newDone = append(newDone, l.done[i+1:]...)
-	l.done = newDone
 }
 
 func (l *List) add() {
-	newItem := "New Entry"
+	content := "New Entry"
+	id, _ := l.ui.db.createItem(content, l.ID)
+	newItem := Item{
+		id:      id,
+		content: content,
+	}
 	i := l.row
 	nitems := len(l.items)
 	if nitems == 0 || nitems-1 == i {
-		l.done = append(l.done, false)
 		l.items = append(l.items, newItem)
 		return
 	}
 	l.items = append(l.items[:i+1], l.items[i:]...)
 	l.items[i+1] = newItem
-	l.done = append(l.done[:i+1], l.done[i:]...)
-	l.done[i+1] = false
 }
 
 func (l *List) addRune(r rune) {
 	if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '_' || r == '.' || r == '-' {
-		if len(l.items[l.row]) == 1 && l.items[l.row][0] == ' ' {
-			l.items[l.row] = string(r)
+		if len(l.items[l.row].content) == 1 && l.items[l.row].content[0] == ' ' {
+			l.items[l.row].content = string(r)
 		} else {
-
-			l.items[l.row] += string(r)
+			l.items[l.row].content += string(r)
 		}
 		l.col++
 	}
 }
 
 func (l *List) deleteRune() {
-	last := len(l.items[l.row]) - 1
+	last := len(l.items[l.row].content) - 1
 	if last > 0 {
-		l.items[l.row] = l.items[l.row][:last]
+		l.items[l.row].content = l.items[l.row].content[:last]
 		l.col--
 	}
 	if last == 0 {
-		l.items[l.row] = " "
+		l.items[l.row].content = " "
 	}
 }
 
 func (l *List) markItem() {
-	l.done[l.row] = !l.done[l.row]
+	item := l.currentItem()
+	item.done = !item.done
 }
 
+func (l *List) currentItem() *Item {
+	return &l.items[l.row]
+}

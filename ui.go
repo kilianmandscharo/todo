@@ -1,18 +1,25 @@
 package main
 
 import (
+	"github.com/gdamore/tcell"
 	"log"
 	"os"
-	"github.com/gdamore/tcell"
 )
 
 type UI struct {
 	screen  tcell.Screen
+	db      *DB
 	lists   []List
 	current int
+	dstyle  tcell.Style
+	hstyle  tcell.Style
+	estyle  tcell.Style
 }
 
 func newUI() UI {
+	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
+	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
+	estyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorBlack)
 	s, err := tcell.NewScreen()
 	if err != nil {
 		log.Fatal(err)
@@ -20,7 +27,40 @@ func newUI() UI {
 	if err := s.Init(); err != nil {
 		log.Fatal(err)
 	}
-	return UI{screen: s}
+	s.SetStyle(dstyle)
+	db, err := newDatabase("data.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	db.init()
+	return UI{
+		screen: s,
+		db:     db,
+		dstyle: dstyle,
+		hstyle: hstyle,
+		estyle: estyle,
+	}
+}
+
+func (ui *UI) load() {
+	lists, err := ui.db.getLists()
+	if err != nil {
+		log.Fatal(err)
+	}
+  // Create new list if there are none in the database
+	if len(lists) == 0 {
+		ui.db.createList()
+		lists = append(lists, List{ID: 1})
+	}
+  // Create a new item for each empty list and set the ui field for each list
+	for i := range lists {
+		lists[i].ui = ui
+		if len(lists[i].items) == 0 {
+			ui.db.createItem("New Entry", lists[i].ID)
+			lists[i].items = append(lists[i].items, Item{id: 1, content: "New Entry"})
+		}
+	}
+	ui.lists = lists
 }
 
 func (ui *UI) clear() {
@@ -32,14 +72,16 @@ func (ui *UI) show() {
 }
 
 func (ui *UI) addList() {
-	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
-	estyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorBlack)
-	ui.screen.SetStyle(dstyle)
-	todos := []string{
-		"New Entry",
+	todos := []Item{
+		{done: false, content: "New Entry"},
 	}
-	list := List{row: 0, col: 0, edit: false, items: todos, done: []bool{false}, dstyle: dstyle, hstyle: hstyle, estyle: estyle, screen: ui.screen}
+	list := List{
+		row:   0,
+		col:   0,
+		edit:  false,
+		items: todos,
+		ui:    ui,
+	}
 	ui.lists = append(ui.lists, list)
 }
 
@@ -93,4 +135,3 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 		}
 	}
 }
-

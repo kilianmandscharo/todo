@@ -18,15 +18,9 @@ func logToFile(s string) {
 }
 
 func main() {
-  db, err := newDatabase("data.db")
-  if err != nil {
-    log.Fatal(err)
-  }
-  initDatabase(db)
-  defer db.Close()
-
 	ui := newUI()
-	ui.addList()
+	ui.load()
+	defer ui.db.close()
 
 	for {
 		ui.clear()
