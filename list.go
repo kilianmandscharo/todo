@@ -16,10 +16,9 @@ type List struct {
 }
 
 type Item struct {
-	id       int
-	position int
-	content  string
-	done     bool
+	id      int
+	content string
+	done    bool
 }
 
 func (l *List) enterEdit() {
@@ -105,14 +104,7 @@ func (l *List) delete() {
 func (l *List) add() {
 	i := l.row
 	content := "New Entry"
-	var position int
-	if len(l.items) == 0 {
-		position = 0
-	} else {
-		position = i + 1
-    l.row++
-	}
-	id, _ := l.ui.db.createItem(content, position, l.ID)
+	id, _ := l.ui.db.createItem(content, l.ID)
 	newItem := Item{
 		id:      id,
 		content: content,
@@ -151,6 +143,12 @@ func (l *List) deleteRune() {
 func (l *List) markItem() {
 	item := l.currentItem()
 	item.done = !item.done
+	l.ui.db.updateItemDone(item.id, item.done)
+}
+
+func (l *List) updateItem() {
+	item := l.currentItem()
+	l.ui.db.updateItemContent(item.id, item.content)
 }
 
 func (l *List) currentItem() *Item {
