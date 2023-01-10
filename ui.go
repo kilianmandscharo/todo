@@ -54,7 +54,6 @@ func (ui *UI) load() {
 	}
   // Create a new item for each empty list and set the ui field for each list
 	for i := range lists {
-		lists[i].ui = ui
 		if len(lists[i].items) == 0 {
 			ui.db.createItem("New Entry", lists[i].ID)
 			lists[i].items = append(lists[i].items, Item{id: 1, content: "New Entry"})
@@ -80,7 +79,6 @@ func (ui *UI) addList() {
 		col:   0,
 		edit:  false,
 		items: todos,
-		ui:    ui,
 	}
 	ui.lists = append(ui.lists, list)
 }
@@ -105,7 +103,7 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 				list.deleteRune()
 			}
 			if ev.Key() == tcell.KeyEscape {
-        list.updateItem()
+        list.updateItem(ui.db)
 				list.exitEdit()
 			}
 		} else {
@@ -122,16 +120,16 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 				list.switchUp()
 			}
 			if ev.Rune() == 'd' {
-				list.delete()
+				list.delete(ui.db)
 			}
 			if ev.Rune() == 'n' {
-				list.add()
+				list.add(ui.db)
 			}
 			if ev.Rune() == 'e' {
 				list.enterEdit()
 			}
 			if ev.Rune() == 13 {
-				list.markItem()
+				list.markItem(ui.db)
 			}
 		}
 	}

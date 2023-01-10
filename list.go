@@ -12,7 +12,6 @@ type List struct {
 	col   int
 	edit  bool
 	items []Item
-	ui    *UI
 }
 
 type Item struct {
@@ -31,17 +30,17 @@ func (l *List) exitEdit() {
 	l.col = 0
 }
 
-func (l *List) render() {
+func (l *List) render(ui *UI) {
 	for row, item := range l.items {
 		var style tcell.Style
 		if row == l.row {
 			if l.edit {
-				style = l.ui.estyle
+				style = ui.estyle
 			} else {
-				style = l.ui.hstyle
+				style = ui.hstyle
 			}
 		} else {
-			style = l.ui.dstyle
+			style = ui.dstyle
 		}
 		var marker rune
 		if item.done {
@@ -49,11 +48,11 @@ func (l *List) render() {
 		} else {
 			marker = ' '
 		}
-		l.ui.screen.SetContent(0, row, '[', nil, l.ui.dstyle)
-		l.ui.screen.SetContent(1, row, marker, nil, l.ui.dstyle)
-		l.ui.screen.SetContent(2, row, ']', nil, l.ui.dstyle)
+		ui.screen.SetContent(0, row, '[', nil, ui.dstyle)
+		ui.screen.SetContent(1, row, marker, nil, ui.dstyle)
+		ui.screen.SetContent(2, row, ']', nil, ui.dstyle)
 		for col, r := range []rune(item.content) {
-			l.ui.screen.SetContent(col+4, row, r, nil, style)
+			ui.screen.SetContent(col+4, row, r, nil, style)
 		}
 	}
 }
@@ -86,8 +85,8 @@ func (l *List) switchDown() {
 	}
 }
 
-func (l *List) delete() {
-	l.ui.db.deleteItem(l.currentItem().id)
+func (l *List) delete(db *DB) {
+	db.deleteItem(l.currentItem().id)
 	if len(l.items) == 1 {
 		l.items = nil
 		return
@@ -101,10 +100,10 @@ func (l *List) delete() {
 	l.items = newItems
 }
 
-func (l *List) add() {
+func (l *List) add(db *DB) {
 	i := l.row
 	content := "New Entry"
-	id, _ := l.ui.db.createItem(content, l.ID)
+	id, _ := db.createItem(content, l.ID)
 	newItem := Item{
 		id:      id,
 		content: content,
@@ -140,15 +139,15 @@ func (l *List) deleteRune() {
 	}
 }
 
-func (l *List) markItem() {
+func (l *List) markItem(db *DB) {
 	item := l.currentItem()
 	item.done = !item.done
-	l.ui.db.updateItemDone(item.id, item.done)
+	db.updateItemDone(item.id, item.done)
 }
 
-func (l *List) updateItem() {
+func (l *List) updateItem(db *DB) {
 	item := l.currentItem()
-	l.ui.db.updateItemContent(item.id, item.content)
+	db.updateItemContent(item.id, item.content)
 }
 
 func (l *List) currentItem() *Item {

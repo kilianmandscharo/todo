@@ -24,7 +24,7 @@ func main() {
 
 	for {
 		ui.clear()
-		ui.currentList().render()
+		ui.currentList().render(&ui)
 		ui.show()
 		ev := ui.screen.PollEvent()
 		ui.handleEvent(ev)
