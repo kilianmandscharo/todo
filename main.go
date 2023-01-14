@@ -18,13 +18,22 @@ func logToFile(s string) {
 }
 
 func main() {
-	ui := newUI()
+	var debug bool
+	if len(os.Args) > 1 {
+		debug = os.Args[1] == "debug"
+	}
+	ui := newUI(debug)
 	ui.load()
+  
 	defer ui.db.close()
+
+  if debug {
+    os.Exit(0)
+  }
 
 	for {
 		ui.clear()
-		ui.currentList().render(&ui)
+    ui.render()
 		ui.show()
 		ev := ui.screen.PollEvent()
 		ui.handleEvent(ev)

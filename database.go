@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -16,16 +17,23 @@ func newDatabase(name string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+  q := `
+  PRAGMA foreign_keys = ON;
+  `
+  _, err = db.Exec(q)
+  if err != nil {
+    return nil, err
+  }
 	return &DB{db: db}, nil
 }
 
 func (db *DB) init() error {
-	listStatement := "CREATE TABLE IF NOT EXISTS list (id INTEGER PRIMARY KEY ASC)"
+	listStatement := "CREATE TABLE IF NOT EXISTS list (id INTEGER PRIMARY KEY ASC, item_order TEXT)"
 	_, err := db.db.Exec(listStatement)
 	if err != nil {
 		return err
 	}
-	itemStatement := "CREATE TABLE IF NOT EXISTS item (id INTEGER PRIMARY KEY ASC, content TEXT, done INTEGER, list_id INTEGER, FOREIGN KEY (list_id) REFERENCES list (id))"
+	itemStatement := "CREATE TABLE IF NOT EXISTS item (id INTEGER PRIMARY KEY ASC, content TEXT, done INTEGER, list_id INTEGER, FOREIGN KEY(list_id) REFERENCES list(id) ON DELETE CASCADE)"
 	_, err = db.db.Exec(itemStatement)
 	if err != nil {
 		return err
@@ -37,16 +45,19 @@ func (db *DB) close() {
 	db.db.Close()
 }
 
-func (db *DB) createList() error {
-	_, err := db.db.Exec("INSERT INTO list (id) VALUES (null)")
+func (db *DB) createList() (int, error) {
+	stmt := fmt.Sprintf("INSERT INTO list (id, item_order) VALUES (null, \"\") RETURNING id")
+	var id int
+	row := db.db.QueryRow(stmt)
+	err := row.Scan(&id)
 	if err != nil {
-		return err
+		return -1, err
 	}
-	return nil
+	return id, nil
 }
 
 func (db *DB) deleteList(id int) error {
-	stmt := fmt.Sprintf("DELETE FROM list WHERE id = %d", id)
+	stmt := fmt.Sprintf("DELETE FROM list WHERE id = %d ", id)
 	_, err := db.db.Exec(stmt)
 	if err != nil {
 		return err
@@ -76,11 +87,14 @@ func (db *DB) getLists() ([]List, error) {
 	return lists, nil
 }
 
-func (db *DB) createItem(content string, listID int) (int, error) {
-	stmt := fmt.Sprintf("INSERT INTO item (content, done, list_id) VALUES (\"%s\", %d, %d) RETURNING id", content, 0, listID)
+func (db *DB) createItem(listID int) (int, error) {
+	stmt := fmt.Sprintf("INSERT INTO item (content, done, list_id) VALUES (\"New Entry\", %d, %d) RETURNING id", 0, listID)
 	var id int
 	row := db.db.QueryRow(stmt)
-	row.Scan(&id)
+	err := row.Scan(&id)
+	if err != nil {
+		return -1, err
+	}
 	return id, nil
 }
 
@@ -133,6 +147,46 @@ func (db *DB) getItems(listID int) ([]Item, error) {
 		}
 		items = append(items, Item{id: id, content: content, done: done == 1})
 	}
-	rows.Close()
 	return items, nil
+}
+
+func (db *DB) saveOrder(lists []List) error {
+	for _, l := range lists {
+		items := l.items
+		order := make(map[int]int)
+		for i, item := range items {
+			order[i] = item.id
+		}
+		orderString, err := json.Marshal(order)
+		if err != nil {
+			return err
+		}
+		stmt := fmt.Sprintf("UPDATE list SET item_order = '%s' WHERE id = %d", string(orderString), l.ID)
+		_, err = db.db.Exec(stmt)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (db *DB) loadOrder() ([]map[int]int, error) {
+	stmt := "SELECT item_order FROM list"
+	var orders []map[int]int
+	rows, err := db.db.Query(stmt)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var orderString string
+		if err := rows.Scan(&orderString); err != nil {
+			return nil, err
+		}
+		var order map[int]int
+		if err := json.Unmarshal([]byte(orderString), &order); err != nil {
+			return nil, err
+		}
+		orders = append(orders, order)
+	}
+	return orders, nil
 }

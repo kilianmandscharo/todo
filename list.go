@@ -10,7 +10,6 @@ type List struct {
 	ID    int
 	row   int
 	col   int
-	edit  bool
 	items []Item
 }
 
@@ -20,21 +19,16 @@ type Item struct {
 	done    bool
 }
 
-func (l *List) enterEdit() {
-	l.edit = true
-	l.items[l.row].content = " "
-}
-
-func (l *List) exitEdit() {
-	l.edit = false
-	l.col = 0
-}
-
-func (l *List) render(ui *UI) {
+func (l *List) render(ui *UI, xoffset int, yoffset int) {
+  if len(l.items) == 0 {
+    ui.renderLine("Press 'n' to create an entry", 3)
+    return
+  } 
 	for row, item := range l.items {
+		rowWithOffset := row + yoffset
 		var style tcell.Style
 		if row == l.row {
-			if l.edit {
+			if ui.edit {
 				style = ui.estyle
 			} else {
 				style = ui.hstyle
@@ -48,11 +42,11 @@ func (l *List) render(ui *UI) {
 		} else {
 			marker = ' '
 		}
-		ui.screen.SetContent(0, row, '[', nil, ui.dstyle)
-		ui.screen.SetContent(1, row, marker, nil, ui.dstyle)
-		ui.screen.SetContent(2, row, ']', nil, ui.dstyle)
+		ui.screen.SetContent(0 + xoffset, rowWithOffset, '[', nil, ui.dstyle)
+		ui.screen.SetContent(1 + xoffset, rowWithOffset, marker, nil, ui.dstyle)
+		ui.screen.SetContent(2 + xoffset, rowWithOffset, ']', nil, ui.dstyle)
 		for col, r := range []rune(item.content) {
-			ui.screen.SetContent(col+4, row, r, nil, style)
+			ui.screen.SetContent(col+4 + xoffset, rowWithOffset, r, nil, style)
 		}
 	}
 }
@@ -86,7 +80,13 @@ func (l *List) switchDown() {
 }
 
 func (l *List) delete(db *DB) {
-	db.deleteItem(l.currentItem().id)
+  if len(l.items) == 0 {
+    return
+  }
+  err := db.deleteItem(l.currentItem().id)
+  if err != nil {
+    return
+  }
 	if len(l.items) == 1 {
 		l.items = nil
 		return
@@ -102,11 +102,13 @@ func (l *List) delete(db *DB) {
 
 func (l *List) add(db *DB) {
 	i := l.row
-	content := "New Entry"
-	id, _ := db.createItem(content, l.ID)
+	id, err := db.createItem(l.ID)
+	if err != nil {
+		return
+	}
 	newItem := Item{
 		id:      id,
-		content: content,
+		content: "New Entry",
 	}
 	nitems := len(l.items)
 	if nitems == 0 || nitems-1 == i {
@@ -152,4 +154,13 @@ func (l *List) updateItem(db *DB) {
 
 func (l *List) currentItem() *Item {
 	return &l.items[l.row]
+}
+
+func (l *List) itemById(id int) *Item {
+  for i := range l.items {
+    if l.items[i].id == id {
+      return &l.items[i]
+    }
+  }
+  return nil
 }
