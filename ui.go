@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -9,15 +11,23 @@ import (
 	"github.com/gdamore/tcell"
 )
 
+const headerHeight = 5
+const xoffset = 1
+const topOffset = 1
+const bottomOffset = 1
+
 type UI struct {
-	screen  tcell.Screen
-	db      *DB
-	lists   []List
-	current int
-	dstyle  tcell.Style
-	hstyle  tcell.Style
-	estyle  tcell.Style
-	edit    bool
+	screen       tcell.Screen
+	db           *DB
+	lists        []List
+	current      int
+	dstyle       tcell.Style
+	hstyle       tcell.Style
+	estyle       tcell.Style
+	edit         bool
+	windowTop    int
+	windowBottom int
+	deletingList bool
 }
 
 func newUI(debug bool) UI {
@@ -97,6 +107,7 @@ func (ui *UI) deleteList() {
 	newLists := ui.lists[:i]
 	newLists = append(newLists, ui.lists[i+1:]...)
 	ui.lists = newLists
+	ui.calculateWindow()
 }
 
 func (ui *UI) currentList() *List {
@@ -106,7 +117,9 @@ func (ui *UI) currentList() *List {
 func (ui *UI) handleEvent(ev tcell.Event) {
 	switch ev := ev.(type) {
 	case *tcell.EventResize:
+		ui.calculateWindow()
 		ui.screen.Sync()
+		return
 	case *tcell.EventKey:
 		ui.clear()
 		ui.show()
@@ -122,12 +135,26 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 				return
 			}
 		} else {
+			if ui.deletingList {
+				if ev.Rune() == 'y' {
+					ui.deleteList()
+					ui.deletingList = false
+					return
+				}
+				if ev.Rune() == 'n' {
+					ui.deletingList = false
+					return
+				}
+				return
+			}
 			if ev.Rune() == 'c' {
 				ui.addList()
 				return
 			}
 			if ev.Rune() == 'r' {
-				ui.deleteList()
+				if len(ui.lists) != 0 {
+					ui.deletingList = true
+				}
 				return
 			}
 			if unicode.IsDigit(ev.Rune()) {
@@ -150,27 +177,27 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 				return
 			} else {
 				if ev.Rune() == 'j' {
-					list.down()
+					list.down(ui)
 					return
 				}
 				if ev.Rune() == 'k' {
-					list.up()
+					list.up(ui)
 					return
 				}
 				if ev.Rune() == 'J' {
-					list.switchDown()
+					list.switchDown(ui)
 					return
 				}
 				if ev.Rune() == 'K' {
-					list.switchUp()
+					list.switchUp(ui)
 					return
 				}
 				if ev.Rune() == 'd' {
-					list.delete(ui.db)
+					list.delete(ui.db, ui)
 					return
 				}
 				if ev.Rune() == 'n' {
-					list.add(ui.db)
+					list.add(ui.db, ui)
 					return
 				}
 				if ev.Rune() == 13 {
@@ -198,9 +225,12 @@ func (ui *UI) loadOrder() {
 		if len(order) == 0 {
 			continue
 		}
+		logToFile(fmt.Sprintf("Order: %v", order))
 		var newItems []Item
-		for _, id := range order {
-			newItems = append(newItems, *ui.lists[i].itemById(id))
+		for index := 0; index < len(order); index++ {
+			id := order[index]
+			item := *ui.lists[i].itemById(id)
+			newItems = append(newItems, item)
 		}
 		ui.lists[i].items = newItems
 	}
@@ -208,25 +238,26 @@ func (ui *UI) loadOrder() {
 
 func (ui *UI) switchList(r rune) {
 	val := int(r - '0')
-	ui.screen.SetContent(0, 1, r, nil, ui.dstyle)
 	if val > len(ui.lists) {
 		return
 	}
 	ui.current = val - 1
+	ui.calculateWindow()
 }
 
 func (ui *UI) render() {
 	renderHeader(ui)
 	renderListNav(ui)
 	renderCurrentList(ui)
+	renderFooter(ui)
 }
 
 func renderCurrentList(ui *UI) {
 	if len(ui.lists) == 0 {
-		ui.renderLine("Press c to create a new list", 3)
+		ui.renderLine("Press c to create a new list", headerHeight-1)
 		return
 	}
-	ui.lists[ui.current].render(ui, 1, 4)
+	ui.lists[ui.current].render(ui)
 }
 
 func renderListNav(ui *UI) {
@@ -238,18 +269,37 @@ func renderListNav(ui *UI) {
 			style = ui.dstyle
 		}
 		r := strconv.Itoa(i + 1)
-		ui.screen.SetContent(i*2+1, 2, []rune(r)[0], nil, style)
+		ui.screen.SetContent(i*2+xoffset, 2, []rune(r)[0], nil, style)
 	}
+	ui.screen.SetContent(ui.current*2+xoffset, 3, '^', nil, ui.dstyle)
+	ui.renderLine(separator(ui), 3)
+}
+
+func separator(ui *UI) string {
+	var line bytes.Buffer
+	for i := 0; i < ui.width()-2; i++ {
+		line.WriteRune('=')
+	}
+	return line.String()
 }
 
 func renderHeader(ui *UI) {
-	header := "========== todo =========="
+	header := "Lists:"
 	ui.renderLine(header, 0)
 }
 
 func (ui *UI) renderLine(line string, row int) {
 	for col, r := range []rune(line) {
-		ui.screen.SetContent(col+1, row+1, r, nil, ui.dstyle)
+		ui.screen.SetContent(col+xoffset, row+topOffset, r, nil, ui.dstyle)
+	}
+}
+
+func renderFooter(ui *UI) {
+	if ui.deletingList {
+		ui.renderLine("Delete current list? y / n", ui.height()-2)
+	} else {
+		ui.renderLine(separator(ui), ui.height()-2)
+		//ui.renderLine("list: new(c) delete(r) - item: new(n) delete(d) edit: enter(e) exit(esc)", ui.height()-2)
 	}
 }
 
@@ -262,4 +312,50 @@ func (ui *UI) enterEdit() {
 func (ui *UI) exitEdit() {
 	ui.edit = false
 	ui.currentList().col = 0
+}
+
+func (ui *UI) calculateWindow() {
+	if len(ui.lists) == 0 {
+		return
+	}
+	_, h := ui.screen.Size()
+	topOffset := topOffset + headerHeight
+	bottomOffset := 1
+	listLength := len(ui.currentList().items)
+	spaceNeeded := listLength + topOffset + bottomOffset
+	var newWindowBottom int
+	if spaceNeeded > h {
+		newWindowBottom = max(listLength-(spaceNeeded-h), 0)
+	} else {
+		newWindowBottom = max(listLength, 0)
+	}
+	ui.windowBottom = newWindowBottom
+}
+
+func (ui *UI) height() int {
+	_, h := ui.screen.Size()
+	return h
+}
+
+func (ui *UI) width() int {
+	w, _ := ui.screen.Size()
+	return w
+}
+
+func max(val1, val2 int) int {
+	if val1 >= val2 {
+		return val1
+	}
+	return val2
+}
+
+func (ui *UI) debugPrint() {
+	if len(ui.lists) == 0 {
+		return
+	}
+	w, h := ui.screen.Size()
+	line := fmt.Sprintf("Width: %d, Height: %d, Wtop: %d, Wbottom: %d, row: %d", w, h, ui.windowTop, ui.windowBottom, ui.currentList().row)
+	for col, r := range []rune(line) {
+		ui.screen.SetContent(col+1, 0, r, nil, ui.dstyle)
+	}
 }

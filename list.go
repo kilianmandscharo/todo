@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+	"strconv"
 	"unicode"
 
 	"github.com/gdamore/tcell"
@@ -19,15 +21,20 @@ type Item struct {
 	done    bool
 }
 
-func (l *List) render(ui *UI, xoffset int, yoffset int) {
-  if len(l.items) == 0 {
-    ui.renderLine("Press 'n' to create an entry", 3)
-    return
-  } 
-	for row, item := range l.items {
-		rowWithOffset := row + yoffset
+func (l *List) render(ui *UI) {
+	if len(l.items) == 0 {
+		ui.renderLine("Press 'n' to create an entry", headerHeight-1)
+		return
+	}
+	done := 0
+	for row, item := range l.items[ui.windowTop:ui.windowBottom] {
+		if item.done {
+			done++
+		}
+		rowWithOffset := row + topOffset + headerHeight
+		rowWithW := row + ui.windowTop
 		var style tcell.Style
-		if row == l.row {
+		if rowWithW == l.row {
 			if ui.edit {
 				style = ui.estyle
 			} else {
@@ -42,51 +49,80 @@ func (l *List) render(ui *UI, xoffset int, yoffset int) {
 		} else {
 			marker = ' '
 		}
-		ui.screen.SetContent(0 + xoffset, rowWithOffset, '[', nil, ui.dstyle)
-		ui.screen.SetContent(1 + xoffset, rowWithOffset, marker, nil, ui.dstyle)
-		ui.screen.SetContent(2 + xoffset, rowWithOffset, ']', nil, ui.dstyle)
-		for col, r := range []rune(item.content) {
-			ui.screen.SetContent(col+4 + xoffset, rowWithOffset, r, nil, style)
+		ui.screen.SetContent(0+xoffset, rowWithOffset, '[', nil, ui.dstyle)
+		ui.screen.SetContent(1+xoffset, rowWithOffset, marker, nil, ui.dstyle)
+		ui.screen.SetContent(2+xoffset, rowWithOffset, ']', nil, ui.dstyle)
+    id := strconv.Itoa(item.id)
+		for col, r := range []rune(id) {
+			colWithOffset := col + xoffset + 4
+			ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
 		}
 	}
+	total := len(l.items)
+	topLine := fmt.Sprintf("%d / %d done", done, total)
+	ui.renderLine(topLine, headerHeight-1)
 }
 
-func (l *List) down() {
+func (l *List) down(ui *UI) {
 	if l.row+1 <= len(l.items)-1 {
+		if l.row+1 == ui.windowBottom {
+			ui.windowBottom++
+			ui.windowTop++
+		}
 		l.row++
 	}
 }
 
-func (l *List) up() {
+func (l *List) up(ui *UI) {
 	if l.row-1 >= 0 {
+		if l.row == ui.windowTop {
+			ui.windowTop--
+			ui.windowBottom--
+		}
 		l.row--
 	}
 }
 
-func (l *List) switchUp() {
+func (l *List) switchUp(ui *UI) {
 	i := l.row
 	if i-1 >= 0 {
+		if l.row == ui.windowTop {
+			ui.windowTop--
+			ui.windowBottom--
+		}
 		l.items[i], l.items[i-1] = l.items[i-1], l.items[i]
 		l.row--
 	}
 }
 
-func (l *List) switchDown() {
+func (l *List) switchDown(ui *UI) {
 	i := l.row
 	if i+1 <= len(l.items)-1 {
+		if l.row+1 == ui.windowBottom {
+			ui.windowBottom++
+			ui.windowTop++
+		}
 		l.items[i], l.items[i+1] = l.items[i+1], l.items[i]
 		l.row++
 	}
 }
 
-func (l *List) delete(db *DB) {
-  if len(l.items) == 0 {
-    return
-  }
-  err := db.deleteItem(l.currentItem().id)
-  if err != nil {
-    return
-  }
+func (l *List) delete(db *DB, ui *UI) {
+	if len(l.items) == 0 {
+		return
+	}
+	err := db.deleteItem(l.currentItem().id)
+	if err != nil {
+		return
+	}
+	nitems := len(l.items)
+	space := ui.height() - headerHeight - topOffset - bottomOffset
+	if nitems-1 < space {
+		ui.windowBottom--
+	} else if ui.windowTop > 0 {
+		ui.windowBottom--
+		ui.windowTop--
+	}
 	if len(l.items) == 1 {
 		l.items = nil
 		return
@@ -100,7 +136,7 @@ func (l *List) delete(db *DB) {
 	l.items = newItems
 }
 
-func (l *List) add(db *DB) {
+func (l *List) add(db *DB, ui *UI) {
 	i := l.row
 	id, err := db.createItem(l.ID)
 	if err != nil {
@@ -111,6 +147,10 @@ func (l *List) add(db *DB) {
 		content: "New Entry",
 	}
 	nitems := len(l.items)
+	space := ui.height() - headerHeight - topOffset - bottomOffset
+	if nitems+1 <= space && ui.windowTop < space {
+		ui.windowBottom++
+	}
 	if nitems == 0 || nitems-1 == i {
 		l.items = append(l.items, newItem)
 		return
@@ -157,10 +197,10 @@ func (l *List) currentItem() *Item {
 }
 
 func (l *List) itemById(id int) *Item {
-  for i := range l.items {
-    if l.items[i].id == id {
-      return &l.items[i]
-    }
-  }
-  return nil
+	for i := range l.items {
+		if l.items[i].id == id {
+			return &l.items[i]
+		}
+	}
+	return nil
 }

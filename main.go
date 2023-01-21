@@ -24,16 +24,18 @@ func main() {
 	}
 	ui := newUI(debug)
 	ui.load()
-  
+	ui.calculateWindow()
+
 	defer ui.db.close()
 
-  if debug {
-    os.Exit(0)
-  }
+	if debug {
+		os.Exit(0)
+	}
 
 	for {
 		ui.clear()
-    ui.render()
+    ui.debugPrint()
+		ui.render()
 		ui.show()
 		ev := ui.screen.PollEvent()
 		ui.handleEvent(ev)
