@@ -48,7 +48,7 @@ func newUI(debug bool) UI {
 		}
 		s = screen
 	}
-	db, err := newDatabase("data.db")
+	db, err := newDatabase()
 	if err != nil {
 		log.Fatal(err)
 	}

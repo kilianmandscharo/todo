@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -12,8 +13,9 @@ type DB struct {
 	db *sql.DB
 }
 
-func newDatabase(name string) (*DB, error) {
-	db, err := sql.Open("sqlite3", name)
+func newDatabase() (*DB, error) {
+  os.Mkdir("todo_data", os.ModePerm)
+	db, err := sql.Open("sqlite3", "todo_data/data.db")
 	if err != nil {
 		return nil, err
 	}
