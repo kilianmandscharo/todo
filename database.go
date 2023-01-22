@@ -28,7 +28,7 @@ func newDatabase(name string) (*DB, error) {
 }
 
 func (db *DB) init() error {
-	listStatement := "CREATE TABLE IF NOT EXISTS list (id INTEGER PRIMARY KEY ASC, item_order TEXT)"
+	listStatement := "CREATE TABLE IF NOT EXISTS list (id INTEGER PRIMARY KEY ASC, name TEXT, item_order TEXT)"
 	_, err := db.db.Exec(listStatement)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func (db *DB) close() {
 }
 
 func (db *DB) createList() (int, error) {
-	stmt := fmt.Sprintf("INSERT INTO list (id, item_order) VALUES (null, \"\") RETURNING id")
+	stmt := fmt.Sprintf("INSERT INTO list (id, name, item_order) VALUES (null, 'List name', '') RETURNING id")
 	var id int
 	row := db.db.QueryRow(stmt)
 	err := row.Scan(&id)
@@ -65,8 +65,17 @@ func (db *DB) deleteList(id int) error {
 	return nil
 }
 
+func (db *DB) updateListName(name string, id int) error {
+  stmt := fmt.Sprintf("UPDATE list SET name = '%s' WHERE id = %d", name, id)
+  _, err := db.db.Exec(stmt)
+  if err != nil {
+    return err
+  }
+  return nil
+}
+
 func (db *DB) getLists() ([]List, error) {
-	stmt := "SELECT id from list"
+	stmt := "SELECT id, name from list"
 	rows, err := db.db.Query(stmt)
 	if err != nil {
 		return nil, err
@@ -74,12 +83,14 @@ func (db *DB) getLists() ([]List, error) {
 	var lists []List
 	for rows.Next() {
 		var id int
-		if err := rows.Scan(&id); err != nil {
+    var name string
+		if err := rows.Scan(&id, &name); err != nil {
 			return nil, err
 		}
 		items, _ := db.getItems(id)
 		list := List{
 			ID:    id,
+      name: name,
 			items: items,
 		}
 		lists = append(lists, list)

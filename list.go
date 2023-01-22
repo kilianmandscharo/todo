@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"unicode"
 
 	"github.com/gdamore/tcell"
@@ -10,6 +9,7 @@ import (
 
 type List struct {
 	ID    int
+	name  string
 	row   int
 	col   int
 	items []Item
@@ -21,9 +21,22 @@ type Item struct {
 	done    bool
 }
 
+func (l *List) renderListName(ui *UI) {
+	for col, r := range []rune(l.name) {
+		var style tcell.Style
+		if ui.editListName {
+				style = ui.estyle
+		} else {
+			style = ui.dstyle
+		}
+		ui.screen.SetContent(xoffset+col, 3, r, nil, style)
+	}
+}
+
 func (l *List) render(ui *UI) {
+	l.renderListName(ui)
 	if len(l.items) == 0 {
-		ui.renderLine("Press 'n' to create an entry", headerHeight-1)
+		ui.renderLine("Press 'n' to create an entry", headerHeight)
 		return
 	}
 	done := 0
@@ -34,7 +47,7 @@ func (l *List) render(ui *UI) {
 		rowWithOffset := row + topOffset + headerHeight
 		rowWithW := row + ui.windowTop
 		var style tcell.Style
-		if rowWithW == l.row {
+		if !ui.editListName && rowWithW == l.row {
 			if ui.edit {
 				style = ui.estyle
 			} else {
@@ -52,15 +65,19 @@ func (l *List) render(ui *UI) {
 		ui.screen.SetContent(0+xoffset, rowWithOffset, '[', nil, ui.dstyle)
 		ui.screen.SetContent(1+xoffset, rowWithOffset, marker, nil, ui.dstyle)
 		ui.screen.SetContent(2+xoffset, rowWithOffset, ']', nil, ui.dstyle)
-    id := strconv.Itoa(item.id)
-		for col, r := range []rune(id) {
+		for col, r := range []rune(item.content) {
 			colWithOffset := col + xoffset + 4
 			ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
 		}
 	}
 	total := len(l.items)
 	topLine := fmt.Sprintf("%d / %d done", done, total)
-	ui.renderLine(topLine, headerHeight-1)
+	ui.screen.SetContent(len(l.name)+2, 3, '-', nil, ui.dstyle)
+	ui.screen.SetContent(len(l.name)+3, 3, '-', nil, ui.dstyle)
+	ui.screen.SetContent(len(l.name)+4, 3, '-', nil, ui.dstyle)
+	for col, r := range []rune(topLine) {
+		ui.screen.SetContent(len(l.name)+6+col, 3, r, nil, ui.dstyle)
+	}
 }
 
 func (l *List) down(ui *UI) {
@@ -201,6 +218,35 @@ func (l *List) itemById(id int) *Item {
 		if l.items[i].id == id {
 			return &l.items[i]
 		}
+	}
+	return nil
+}
+
+func (l *List) addRuneToName(r rune) {
+	if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '_' || r == '.' || r == '-' {
+		if len(l.name) == 1 && l.name[0] == ' ' {
+			l.name = string(r)
+		} else {
+			l.name += string(r)
+		}
+		l.col++
+	}
+}
+
+func (l *List) deleteRuneFromName() {
+	last := len(l.name) - 1
+	if last > 0 {
+		l.name = l.name[:last]
+		l.col--
+	}
+	if last == 0 {
+		l.name = " "
+	}
+}
+
+func (l *List) updateName(db *DB) error {
+	if err := db.updateListName(l.name, l.ID); err != nil {
+		return err
 	}
 	return nil
 }

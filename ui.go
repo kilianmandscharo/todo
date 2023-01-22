@@ -11,7 +11,7 @@ import (
 	"github.com/gdamore/tcell"
 )
 
-const headerHeight = 5
+const headerHeight = 4
 const xoffset = 1
 const topOffset = 1
 const bottomOffset = 1
@@ -27,6 +27,7 @@ type UI struct {
 	edit         bool
 	windowTop    int
 	windowBottom int
+	editListName bool
 	deletingList bool
 }
 
@@ -85,7 +86,7 @@ func (ui *UI) addList() {
 	if err != nil {
 		return
 	}
-	ui.lists = append(ui.lists, List{ID: id})
+	ui.lists = append(ui.lists, List{ID: id, name: "List name"})
 }
 
 func (ui *UI) deleteList() {
@@ -128,9 +129,20 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 			ui.screen.Fini()
 			os.Exit(0)
 		}
+		if ui.editListName {
+			if ev.Key() == tcell.KeyEscape {
+				ui.exitNameEdit()
+				return
+			}
+			if ev.Rune() == 127 {
+				ui.currentList().deleteRuneFromName()
+			} else {
+				ui.currentList().addRuneToName(ev.Rune())
+			}
+			return
+		}
 		if ui.edit {
 			if ev.Key() == tcell.KeyEscape {
-				ui.currentList().updateItem(ui.db)
 				ui.exitEdit()
 				return
 			}
@@ -176,6 +188,9 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 				}
 				return
 			} else {
+				if ev.Rune() == 'b' {
+					ui.enterNameEdit()
+				}
 				if ev.Rune() == 'j' {
 					list.down(ui)
 					return
@@ -246,7 +261,6 @@ func (ui *UI) switchList(r rune) {
 }
 
 func (ui *UI) render() {
-	renderHeader(ui)
 	renderListNav(ui)
 	renderCurrentList(ui)
 	renderFooter(ui)
@@ -254,7 +268,7 @@ func (ui *UI) render() {
 
 func renderCurrentList(ui *UI) {
 	if len(ui.lists) == 0 {
-		ui.renderLine("Press c to create a new list", headerHeight-1)
+		ui.renderLine("Press c to create a new list", headerHeight-2)
 		return
 	}
 	ui.lists[ui.current].render(ui)
@@ -269,9 +283,11 @@ func renderListNav(ui *UI) {
 			style = ui.dstyle
 		}
 		r := strconv.Itoa(i + 1)
-		ui.screen.SetContent(i*2+xoffset, 2, []rune(r)[0], nil, style)
+		ui.screen.SetContent(i*2+xoffset, 1, []rune(r)[0], nil, style)
 	}
-	ui.screen.SetContent(ui.current*2+xoffset, 3, '^', nil, ui.dstyle)
+	if len(ui.lists) != 0 {
+		ui.screen.SetContent(ui.current*2+xoffset, 2, '^', nil, ui.dstyle)
+	}
 	ui.renderLine(separator(ui), 3)
 }
 
@@ -281,11 +297,6 @@ func separator(ui *UI) string {
 		line.WriteRune('=')
 	}
 	return line.String()
-}
-
-func renderHeader(ui *UI) {
-	header := "Lists:"
-	ui.renderLine(header, 0)
 }
 
 func (ui *UI) renderLine(line string, row int) {
@@ -311,6 +322,18 @@ func (ui *UI) enterEdit() {
 
 func (ui *UI) exitEdit() {
 	ui.edit = false
+	ui.currentList().updateItem(ui.db)
+	ui.currentList().col = 0
+}
+
+func (ui *UI) enterNameEdit() {
+	ui.currentList().name = " "
+	ui.editListName = true
+}
+
+func (ui *UI) exitNameEdit() {
+	ui.editListName = false
+	ui.currentList().updateName(ui.db)
 	ui.currentList().col = 0
 }
 

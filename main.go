@@ -34,7 +34,6 @@ func main() {
 
 	for {
 		ui.clear()
-    ui.debugPrint()
 		ui.render()
 		ui.show()
 		ev := ui.screen.PollEvent()
