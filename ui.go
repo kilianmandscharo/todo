@@ -158,7 +158,7 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 	case *tcell.EventKey:
 		ui.clear()
 		ui.show()
-		if ev.Key() == tcell.KeyCtrlC {
+		if ev.Key() == tcell.KeyCtrlC || ev.Rune() == 'x' {
 			ui.saveOrder()
 			ui.screen.Fini()
 			os.Exit(0)
