@@ -12,9 +12,11 @@ import (
 )
 
 const headerHeight = 4
-const xoffset = 1
+const leftOffset = 1
 const topOffset = 1
 const bottomOffset = 1
+
+const navPosition = 1
 
 type UI struct {
 	screen       tcell.Screen
@@ -24,6 +26,9 @@ type UI struct {
 	dstyle       tcell.Style
 	hstyle       tcell.Style
 	estyle       tcell.Style
+	pstyle       tcell.Style
+	successStyle tcell.Style
+	errorStyle   tcell.Style
 	edit         bool
 	windowTop    int
 	windowBottom int
@@ -32,9 +37,6 @@ type UI struct {
 }
 
 func newUI(debug bool) UI {
-	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
-	estyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorBlack)
 	var s tcell.Screen
 	if !debug {
 		screen, err := tcell.NewScreen()
@@ -44,7 +46,6 @@ func newUI(debug bool) UI {
 		if err := screen.Init(); err != nil {
 			log.Fatal(err)
 		}
-		screen.SetStyle(dstyle)
 		s = screen
 	}
 	db, err := newDatabase("data.db")
@@ -52,13 +53,9 @@ func newUI(debug bool) UI {
 		log.Fatal(err)
 	}
 	db.init()
-	return UI{
-		screen: s,
-		db:     db,
-		dstyle: dstyle,
-		hstyle: hstyle,
-		estyle: estyle,
-	}
+	ui := &UI{screen: s, db: db}
+	ui = setStyles(ui)
+	return *ui
 }
 
 func (ui *UI) load() {
@@ -68,6 +65,7 @@ func (ui *UI) load() {
 	}
 	ui.lists = lists
 	ui.loadOrder()
+	ui.calculateWindow()
 }
 
 func (ui *UI) clear() {
@@ -76,6 +74,19 @@ func (ui *UI) clear() {
 
 func (ui *UI) show() {
 	ui.screen.Show()
+}
+
+func (ui *UI) currentList() *List {
+	return &ui.lists[ui.current]
+}
+
+func (ui *UI) switchList(r rune) {
+	val := int(r - '0')
+	if val > len(ui.lists) {
+		return
+	}
+	ui.current = val - 1
+	ui.calculateWindow()
 }
 
 func (ui *UI) addList() {
@@ -111,8 +122,31 @@ func (ui *UI) deleteList() {
 	ui.calculateWindow()
 }
 
-func (ui *UI) currentList() *List {
-	return &ui.lists[ui.current]
+func (ui *UI) saveOrder() {
+	err := ui.db.saveOrder(ui.lists)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (ui *UI) loadOrder() {
+	orders, err := ui.db.loadOrder()
+	if err != nil {
+		log.Fatal(err)
+	}
+	for i, order := range orders {
+		if len(order) == 0 {
+			continue
+		}
+		logToFile(fmt.Sprintf("Order: %v", order))
+		var newItems []Item
+		for index := 0; index < len(order); index++ {
+			id := order[index]
+			item := *ui.lists[i].itemById(id)
+			newItems = append(newItems, item)
+		}
+		ui.lists[i].items = newItems
+	}
 }
 
 func (ui *UI) handleEvent(ev tcell.Event) {
@@ -224,42 +258,6 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 	}
 }
 
-func (ui *UI) saveOrder() {
-	err := ui.db.saveOrder(ui.lists)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func (ui *UI) loadOrder() {
-	orders, err := ui.db.loadOrder()
-	if err != nil {
-		log.Fatal(err)
-	}
-	for i, order := range orders {
-		if len(order) == 0 {
-			continue
-		}
-		logToFile(fmt.Sprintf("Order: %v", order))
-		var newItems []Item
-		for index := 0; index < len(order); index++ {
-			id := order[index]
-			item := *ui.lists[i].itemById(id)
-			newItems = append(newItems, item)
-		}
-		ui.lists[i].items = newItems
-	}
-}
-
-func (ui *UI) switchList(r rune) {
-	val := int(r - '0')
-	if val > len(ui.lists) {
-		return
-	}
-	ui.current = val - 1
-	ui.calculateWindow()
-}
-
 func (ui *UI) render() {
 	renderListNav(ui)
 	renderCurrentList(ui)
@@ -283,10 +281,10 @@ func renderListNav(ui *UI) {
 			style = ui.dstyle
 		}
 		r := strconv.Itoa(i + 1)
-		ui.screen.SetContent(i*2+xoffset, 1, []rune(r)[0], nil, style)
+		ui.screen.SetContent(i*2+leftOffset, 1, []rune(r)[0], nil, style)
 	}
 	if len(ui.lists) != 0 {
-		ui.screen.SetContent(ui.current*2+xoffset, 2, '^', nil, ui.dstyle)
+		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, ui.pstyle)
 	}
 	ui.renderLine(separator(ui), 3)
 }
@@ -301,7 +299,7 @@ func separator(ui *UI) string {
 
 func (ui *UI) renderLine(line string, row int) {
 	for col, r := range []rune(line) {
-		ui.screen.SetContent(col+xoffset, row+topOffset, r, nil, ui.dstyle)
+		ui.screen.SetContent(col+leftOffset, row+topOffset, r, nil, ui.dstyle)
 	}
 }
 
@@ -310,7 +308,6 @@ func renderFooter(ui *UI) {
 		ui.renderLine("Delete current list? y / n", ui.height()-2)
 	} else {
 		ui.renderLine(separator(ui), ui.height()-2)
-		//ui.renderLine("list: new(c) delete(r) - item: new(n) delete(d) edit: enter(e) exit(esc)", ui.height()-2)
 	}
 }
 
@@ -355,6 +352,10 @@ func (ui *UI) calculateWindow() {
 	ui.windowBottom = newWindowBottom
 }
 
+func (ui *UI) closeDB() {
+	ui.db.close()
+}
+
 func (ui *UI) height() int {
 	_, h := ui.screen.Size()
 	return h
@@ -365,20 +366,23 @@ func (ui *UI) width() int {
 	return w
 }
 
-func max(val1, val2 int) int {
-	if val1 >= val2 {
-		return val1
-	}
-	return val2
+func (ui *UI) event() tcell.Event {
+	return ui.screen.PollEvent()
 }
 
-func (ui *UI) debugPrint() {
-	if len(ui.lists) == 0 {
-		return
-	}
-	w, h := ui.screen.Size()
-	line := fmt.Sprintf("Width: %d, Height: %d, Wtop: %d, Wbottom: %d, row: %d", w, h, ui.windowTop, ui.windowBottom, ui.currentList().row)
-	for col, r := range []rune(line) {
-		ui.screen.SetContent(col+1, 0, r, nil, ui.dstyle)
-	}
+func setStyles(ui *UI) *UI {
+	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
+	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
+	estyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorBlack)
+	pstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorBlue)
+	successStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorGreen)
+	errorStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
+	ui.dstyle = dstyle
+	ui.hstyle = hstyle
+	ui.estyle = estyle
+	ui.pstyle = pstyle
+	ui.successStyle = successStyle
+	ui.errorStyle = errorStyle
+	ui.screen.SetStyle(dstyle)
+	return ui
 }

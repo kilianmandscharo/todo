@@ -21,23 +21,45 @@ type Item struct {
 	done    bool
 }
 
-func (l *List) renderListName(ui *UI) {
+func (l *List) render(ui *UI) {
+  done := renderBody(ui, l)
+	renderHeader(ui, l, done)
+}
+
+func renderHeader(ui *UI, l *List, done int) {
 	for col, r := range []rune(l.name) {
 		var style tcell.Style
 		if ui.editListName {
-				style = ui.estyle
+			style = ui.estyle
 		} else {
 			style = ui.dstyle
 		}
-		ui.screen.SetContent(xoffset+col, 3, r, nil, style)
+		ui.screen.SetContent(leftOffset+col, 3, r, nil, style)
+	}
+
+	total := len(l.items)
+	if total == 0 {
+		return
+	}
+	topLine := fmt.Sprintf("%d / %d done", done, total)
+	ui.screen.SetContent(len(l.name)+2, 3, '-', nil, ui.dstyle)
+	ui.screen.SetContent(len(l.name)+3, 3, '-', nil, ui.dstyle)
+	ui.screen.SetContent(len(l.name)+4, 3, '-', nil, ui.dstyle)
+	var style tcell.Style
+	if done == total {
+		style = ui.successStyle
+	} else {
+		style = ui.errorStyle
+	}
+	for col, r := range []rune(topLine) {
+		ui.screen.SetContent(len(l.name)+6+col, 3, r, nil, style)
 	}
 }
 
-func (l *List) render(ui *UI) {
-	l.renderListName(ui)
+func renderBody(ui *UI, l *List) int {
 	if len(l.items) == 0 {
 		ui.renderLine("Press 'n' to create an entry", headerHeight)
-		return
+		return 0 
 	}
 	done := 0
 	for row, item := range l.items[ui.windowTop:ui.windowBottom] {
@@ -62,22 +84,15 @@ func (l *List) render(ui *UI) {
 		} else {
 			marker = ' '
 		}
-		ui.screen.SetContent(0+xoffset, rowWithOffset, '[', nil, ui.dstyle)
-		ui.screen.SetContent(1+xoffset, rowWithOffset, marker, nil, ui.dstyle)
-		ui.screen.SetContent(2+xoffset, rowWithOffset, ']', nil, ui.dstyle)
+		ui.screen.SetContent(0+leftOffset, rowWithOffset, '[', nil, ui.dstyle)
+		ui.screen.SetContent(1+leftOffset, rowWithOffset, marker, nil, ui.dstyle)
+		ui.screen.SetContent(2+leftOffset, rowWithOffset, ']', nil, ui.dstyle)
 		for col, r := range []rune(item.content) {
-			colWithOffset := col + xoffset + 4
+			colWithOffset := col + leftOffset + 4
 			ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
 		}
 	}
-	total := len(l.items)
-	topLine := fmt.Sprintf("%d / %d done", done, total)
-	ui.screen.SetContent(len(l.name)+2, 3, '-', nil, ui.dstyle)
-	ui.screen.SetContent(len(l.name)+3, 3, '-', nil, ui.dstyle)
-	ui.screen.SetContent(len(l.name)+4, 3, '-', nil, ui.dstyle)
-	for col, r := range []rune(topLine) {
-		ui.screen.SetContent(len(l.name)+6+col, 3, r, nil, ui.dstyle)
-	}
+	return done
 }
 
 func (l *List) down(ui *UI) {
@@ -122,6 +137,13 @@ func (l *List) switchDown(ui *UI) {
 		l.items[i], l.items[i+1] = l.items[i+1], l.items[i]
 		l.row++
 	}
+}
+
+func (l *List) updateName(db *DB) error {
+	if err := db.updateListName(l.name, l.ID); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (l *List) delete(db *DB, ui *UI) {
@@ -198,30 +220,6 @@ func (l *List) deleteRune() {
 	}
 }
 
-func (l *List) markItem(db *DB) {
-	item := l.currentItem()
-	item.done = !item.done
-	db.updateItemDone(item.id, item.done)
-}
-
-func (l *List) updateItem(db *DB) {
-	item := l.currentItem()
-	db.updateItemContent(item.id, item.content)
-}
-
-func (l *List) currentItem() *Item {
-	return &l.items[l.row]
-}
-
-func (l *List) itemById(id int) *Item {
-	for i := range l.items {
-		if l.items[i].id == id {
-			return &l.items[i]
-		}
-	}
-	return nil
-}
-
 func (l *List) addRuneToName(r rune) {
 	if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '_' || r == '.' || r == '-' {
 		if len(l.name) == 1 && l.name[0] == ' ' {
@@ -244,9 +242,26 @@ func (l *List) deleteRuneFromName() {
 	}
 }
 
-func (l *List) updateName(db *DB) error {
-	if err := db.updateListName(l.name, l.ID); err != nil {
-		return err
+func (l *List) markItem(db *DB) {
+	item := l.currentItem()
+	item.done = !item.done
+	db.updateItemDone(item.id, item.done)
+}
+
+func (l *List) updateItem(db *DB) {
+	item := l.currentItem()
+	db.updateItemContent(item.id, item.content)
+}
+
+func (l *List) currentItem() *Item {
+	return &l.items[l.row]
+}
+
+func (l *List) itemById(id int) *Item {
+	for i := range l.items {
+		if l.items[i].id == id {
+			return &l.items[i]
+		}
 	}
 	return nil
 }
