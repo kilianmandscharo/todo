@@ -11,6 +11,17 @@ import (
 	"github.com/gdamore/tcell"
 )
 
+type Mode int
+
+const (
+	normalMode Mode = iota
+	listMode
+	entryMode
+	editListNameMode
+	deleteListMode
+	editMode
+)
+
 const headerHeight = 4
 const leftOffset = 1
 const topOffset = 1
@@ -23,17 +34,19 @@ type UI struct {
 	db           *DB
 	lists        []List
 	current      int
-	dstyle       tcell.Style
-	hstyle       tcell.Style
-	estyle       tcell.Style
-	pstyle       tcell.Style
-	successStyle tcell.Style
-	errorStyle   tcell.Style
-	edit         bool
 	windowTop    int
 	windowBottom int
-	editListName bool
-	deletingList bool
+	styles       Styles
+	mode         Mode
+}
+
+type Styles struct {
+	success   tcell.Style
+	error     tcell.Style
+	primary   tcell.Style
+	highlight tcell.Style
+	def       tcell.Style
+	edit      tcell.Style
 }
 
 func newUI(debug bool) UI {
@@ -55,6 +68,7 @@ func newUI(debug bool) UI {
 	db.init()
 	ui := &UI{screen: s, db: db}
 	ui = setStyles(ui)
+	ui.mode = normalMode
 	return *ui
 }
 
@@ -158,103 +172,109 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 	case *tcell.EventKey:
 		ui.clear()
 		ui.show()
-		if ev.Key() == tcell.KeyCtrlC || ev.Rune() == 'x' {
-			ui.saveOrder()
-			ui.screen.Fini()
-			os.Exit(0)
+
+		if ev.Key() == tcell.KeyCtrlC {
+			ui.exit()
 		}
-		if ui.editListName {
-			if ev.Key() == tcell.KeyEscape {
-				ui.exitNameEdit()
-				return
-			}
-			if ev.Rune() == 127 {
-				ui.currentList().deleteRuneFromName()
-			} else {
-				ui.currentList().addRuneToName(ev.Rune())
-			}
-			return
+
+		switch ui.mode {
+		case normalMode:
+			handleNormalModeEv(ui, ev.Key(), ev.Rune())
+		case listMode:
+			handleListModeEv(ui, ev.Key(), ev.Rune())
+		case entryMode:
+			handleEntryModeEv(ui, ev.Key(), ev.Rune())
+		case editListNameMode:
+			handleDeleteListModeEv(ui, ev.Key(), ev.Rune())
+		case deleteListMode:
+			handleDeleteListModeEv(ui, ev.Key(), ev.Rune())
+		case editMode:
+			handleEditMode(ui, ev.Key(), ev.Rune())
 		}
-		if ui.edit {
-			if ev.Key() == tcell.KeyEscape {
-				ui.exitEdit()
-				return
-			}
-		} else {
-			if ui.deletingList {
-				if ev.Rune() == 'y' {
-					ui.deleteList()
-					ui.deletingList = false
-					return
-				}
-				if ev.Rune() == 'n' {
-					ui.deletingList = false
-					return
-				}
-				return
-			}
-			if ev.Rune() == 'c' {
-				ui.addList()
-				return
-			}
-			if ev.Rune() == 'r' {
-				if len(ui.lists) != 0 {
-					ui.deletingList = true
-				}
-				return
-			}
-			if unicode.IsDigit(ev.Rune()) {
-				ui.switchList(ev.Rune())
-				return
-			}
-			if ev.Rune() == 'e' {
-				ui.enterEdit()
-				return
-			}
+	}
+}
+
+func handleNormalModeEv(ui *UI, key tcell.Key, r rune) {
+	if r == 'x' {
+		ui.exit()
+	}
+	if r == 'l' {
+		ui.mode = listMode
+	}
+	if len(ui.lists) != 0 {
+		list := ui.currentList()
+		if unicode.IsDigit(r) {
+			ui.switchList(r)
+		} else if r == 'j' {
+			list.down(ui)
+		} else if r == 'k' {
+			list.up(ui)
+		} else if r == 'J' {
+			list.switchDown(ui)
+		} else if r == 'K' {
+			list.switchUp(ui)
+		} else if r == 13 {
+			list.markItem(ui.db)
+		} else if r == 'e' {
+			ui.mode = entryMode
 		}
-		if len(ui.lists) != 0 {
-			list := ui.currentList()
-			if ui.edit {
-				if ev.Rune() == 127 {
-					list.deleteRune()
-				} else {
-					list.addRune(ev.Rune())
-				}
-				return
-			} else {
-				if ev.Rune() == 'b' {
-					ui.enterNameEdit()
-				}
-				if ev.Rune() == 'j' {
-					list.down(ui)
-					return
-				}
-				if ev.Rune() == 'k' {
-					list.up(ui)
-					return
-				}
-				if ev.Rune() == 'J' {
-					list.switchDown(ui)
-					return
-				}
-				if ev.Rune() == 'K' {
-					list.switchUp(ui)
-					return
-				}
-				if ev.Rune() == 'd' {
-					list.delete(ui.db, ui)
-					return
-				}
-				if ev.Rune() == 'n' {
-					list.add(ui.db, ui)
-					return
-				}
-				if ev.Rune() == 13 {
-					list.markItem(ui.db)
-					return
-				}
-			}
-		}
+	}
+}
+
+func handleListModeEv(ui *UI, key tcell.Key, r rune) {
+	if r == 'd' && len(ui.lists) != 0 {
+		ui.mode = deleteListMode
+	} else if r == 'n' {
+		ui.addList()
+		ui.mode = normalMode
+	} else if r == 'e' && len(ui.lists) != 0 {
+		ui.enterNameEdit()
+	} else if key == tcell.KeyEscape {
+		ui.mode = normalMode
+	}
+}
+
+func handleEntryModeEv(ui *UI, key tcell.Key, r rune) {
+	if r == 'd' && len(ui.currentList().items) != 0 {
+		ui.currentList().delete(ui.db, ui)
+		ui.mode = normalMode
+	} else if r == 'n' {
+		ui.currentList().add(ui.db, ui)
+		ui.mode = normalMode
+	} else if r == 'e' && len(ui.currentList().items) != 0 {
+		ui.enterEdit()
+	} else if key == tcell.KeyEscape {
+		ui.mode = normalMode
+	}
+}
+
+func handleDeleteListModeEv(ui *UI, key tcell.Key, r rune) {
+	if r == 'y' {
+		ui.deleteList()
+		ui.mode = normalMode
+	} else if r == 'n' {
+		ui.mode = normalMode
+	}
+}
+
+func handleEditListNameModeEv(ui *UI, key tcell.Key, r rune) {
+	if key == tcell.KeyEscape {
+		ui.exitNameEdit()
+	} else if r == 127 {
+		ui.currentList().deleteRuneFromName()
+	} else {
+		ui.currentList().addRuneToName(r)
+	}
+}
+
+func handleEditMode(ui *UI, key tcell.Key, r rune) {
+	list := ui.currentList()
+	if key == tcell.KeyEscape {
+		ui.exitEdit()
+	} else if r == 127 {
+		list.deleteRune()
+	} else {
+		list.addRune(r)
 	}
 }
 
@@ -266,7 +286,7 @@ func (ui *UI) render() {
 
 func renderCurrentList(ui *UI) {
 	if len(ui.lists) == 0 {
-		ui.renderLine("Press c to create a new list", headerHeight-2)
+		ui.renderLine("Press l + n to create a new list", headerHeight-2)
 		return
 	}
 	ui.lists[ui.current].render(ui)
@@ -276,15 +296,15 @@ func renderListNav(ui *UI) {
 	var style tcell.Style
 	for i := range ui.lists {
 		if i == ui.current {
-			style = ui.hstyle
+			style = ui.styles.highlight
 		} else {
-			style = ui.dstyle
+			style = ui.styles.def
 		}
 		r := strconv.Itoa(i + 1)
 		ui.screen.SetContent(i*2+leftOffset, 1, []rune(r)[0], nil, style)
 	}
 	if len(ui.lists) != 0 {
-		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, ui.pstyle)
+		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, ui.styles.primary)
 	}
 	ui.renderLine(separator(ui), 3)
 }
@@ -299,37 +319,44 @@ func separator(ui *UI) string {
 
 func (ui *UI) renderLine(line string, row int) {
 	for col, r := range []rune(line) {
-		ui.screen.SetContent(col+leftOffset, row+topOffset, r, nil, ui.dstyle)
+		ui.screen.SetContent(col+leftOffset, row+topOffset, r, nil, ui.styles.def)
 	}
 }
 
 func renderFooter(ui *UI) {
-	if ui.deletingList {
-		ui.renderLine("Delete current list? y / n", ui.height()-2)
+	footerYPos := ui.height() - 2
+	var line string
+	if ui.mode == listMode {
+		line = "List: (N)ew - (D)elete - (E)dit name"
+	} else if ui.mode == entryMode {
+		line = "Entry: (N)ew - (D)elete - (E)dit current"
+	} else if ui.mode == deleteListMode {
+		line = "Delete current list? y / n"
 	} else {
-		ui.renderLine(separator(ui), ui.height()-2)
+		line = separator(ui)
 	}
+	ui.renderLine(line, footerYPos)
 }
 
 func (ui *UI) enterEdit() {
 	l := ui.currentList()
 	l.items[l.row].content = " "
-	ui.edit = true
+  ui.mode = editMode
 }
 
 func (ui *UI) exitEdit() {
-	ui.edit = false
+  ui.mode = normalMode
 	ui.currentList().updateItem(ui.db)
 	ui.currentList().col = 0
 }
 
 func (ui *UI) enterNameEdit() {
 	ui.currentList().name = " "
-	ui.editListName = true
+	ui.mode = editListNameMode
 }
 
 func (ui *UI) exitNameEdit() {
-	ui.editListName = false
+	ui.mode = normalMode
 	ui.currentList().updateName(ui.db)
 	ui.currentList().col = 0
 }
@@ -370,6 +397,12 @@ func (ui *UI) event() tcell.Event {
 	return ui.screen.PollEvent()
 }
 
+func (ui *UI) exit() {
+	ui.saveOrder()
+	ui.screen.Fini()
+	os.Exit(0)
+}
+
 func setStyles(ui *UI) *UI {
 	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
 	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
@@ -377,12 +410,15 @@ func setStyles(ui *UI) *UI {
 	pstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorBlue)
 	successStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorGreen)
 	errorStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
-	ui.dstyle = dstyle
-	ui.hstyle = hstyle
-	ui.estyle = estyle
-	ui.pstyle = pstyle
-	ui.successStyle = successStyle
-	ui.errorStyle = errorStyle
+	styles := Styles{
+		edit:      estyle,
+		highlight: hstyle,
+		primary:   pstyle,
+		def:       dstyle,
+		success:   successStyle,
+		error:     errorStyle,
+	}
 	ui.screen.SetStyle(dstyle)
+	ui.styles = styles
 	return ui
 }

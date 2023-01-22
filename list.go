@@ -29,10 +29,10 @@ func (l *List) render(ui *UI) {
 func renderHeader(ui *UI, l *List, done int) {
 	for col, r := range []rune(l.name) {
 		var style tcell.Style
-		if ui.editListName {
-			style = ui.estyle
+		if ui.mode == editListNameMode {
+			style = ui.styles.edit
 		} else {
-			style = ui.dstyle
+			style = ui.styles.def
 		}
 		ui.screen.SetContent(leftOffset+col, 3, r, nil, style)
 	}
@@ -42,14 +42,14 @@ func renderHeader(ui *UI, l *List, done int) {
 		return
 	}
 	topLine := fmt.Sprintf("%d / %d done", done, total)
-	ui.screen.SetContent(len(l.name)+2, 3, '-', nil, ui.dstyle)
-	ui.screen.SetContent(len(l.name)+3, 3, '-', nil, ui.dstyle)
-	ui.screen.SetContent(len(l.name)+4, 3, '-', nil, ui.dstyle)
+	ui.screen.SetContent(len(l.name)+2, 3, '-', nil, ui.styles.def)
+	ui.screen.SetContent(len(l.name)+3, 3, '-', nil, ui.styles.def)
+	ui.screen.SetContent(len(l.name)+4, 3, '-', nil, ui.styles.def)
 	var style tcell.Style
 	if done == total {
-		style = ui.successStyle
+		style = ui.styles.success
 	} else {
-		style = ui.errorStyle
+		style = ui.styles.error
 	}
 	for col, r := range []rune(topLine) {
 		ui.screen.SetContent(len(l.name)+6+col, 3, r, nil, style)
@@ -58,7 +58,7 @@ func renderHeader(ui *UI, l *List, done int) {
 
 func renderBody(ui *UI, l *List) int {
 	if len(l.items) == 0 {
-		ui.renderLine("Press 'n' to create an entry", headerHeight)
+		ui.renderLine("Press e + n to create an entry", headerHeight)
 		return 0
 	}
 	done := 0
@@ -69,14 +69,14 @@ func renderBody(ui *UI, l *List) int {
 		rowWithOffset := row + topOffset + headerHeight
 		rowWithW := row + ui.windowTop
 		var style tcell.Style
-		if !ui.editListName && rowWithW == l.row {
-			if ui.edit {
-				style = ui.estyle
+		if ui.mode != editListNameMode && rowWithW == l.row {
+			if ui.mode == editMode {
+				style = ui.styles.edit
 			} else {
-				style = ui.hstyle
+				style = ui.styles.highlight
 			}
 		} else {
-			style = ui.dstyle
+			style = ui.styles.def
 		}
 		var marker rune
 		if item.done {
@@ -84,9 +84,9 @@ func renderBody(ui *UI, l *List) int {
 		} else {
 			marker = ' '
 		}
-		ui.screen.SetContent(0+leftOffset, rowWithOffset, '[', nil, ui.dstyle)
-		ui.screen.SetContent(1+leftOffset, rowWithOffset, marker, nil, ui.dstyle)
-		ui.screen.SetContent(2+leftOffset, rowWithOffset, ']', nil, ui.dstyle)
+		ui.screen.SetContent(0+leftOffset, rowWithOffset, '[', nil, ui.styles.def)
+		ui.screen.SetContent(1+leftOffset, rowWithOffset, marker, nil, ui.styles.def)
+		ui.screen.SetContent(2+leftOffset, rowWithOffset, ']', nil, ui.styles.def)
 		for col, r := range []rune(item.content) {
 			colWithOffset := col + leftOffset + 4
 			ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
