@@ -22,7 +22,7 @@ type Item struct {
 }
 
 func (l *List) render(ui *UI) {
-  done := renderBody(ui, l)
+	done := renderBody(ui, l)
 	renderHeader(ui, l, done)
 }
 
@@ -59,7 +59,7 @@ func renderHeader(ui *UI, l *List, done int) {
 func renderBody(ui *UI, l *List) int {
 	if len(l.items) == 0 {
 		ui.renderLine("Press 'n' to create an entry", headerHeight)
-		return 0 
+		return 0
 	}
 	done := 0
 	for row, item := range l.items[ui.windowTop:ui.windowBottom] {
