@@ -243,6 +243,9 @@ func (l *List) deleteRuneFromName() {
 }
 
 func (l *List) markItem(db *DB) {
+    if len(l.items) == 0 {
+        return
+    }
 	item := l.currentItem()
 	item.done = !item.done
 	db.updateItemDone(item.id, item.done)
