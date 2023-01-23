@@ -185,7 +185,7 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 		case entryMode:
 			handleEntryModeEv(ui, ev.Key(), ev.Rune())
 		case editListNameMode:
-			handleDeleteListModeEv(ui, ev.Key(), ev.Rune())
+			handleEditListNameModeEv(ui, ev.Key(), ev.Rune())
 		case deleteListMode:
 			handleDeleteListModeEv(ui, ev.Key(), ev.Rune())
 		case editMode:
@@ -327,9 +327,9 @@ func renderFooter(ui *UI) {
 	footerYPos := ui.height() - 2
 	var line string
 	if ui.mode == listMode {
-		line = "List: (N)ew - (D)elete - (E)dit name"
+		line = "List: (n)ew - (d)elete - (e)dit name"
 	} else if ui.mode == entryMode {
-		line = "Entry: (N)ew - (D)elete - (E)dit current"
+		line = "Entry: (n)ew - (d)elete - (e)dit current"
 	} else if ui.mode == deleteListMode {
 		line = "Delete current list? y / n"
 	} else {
@@ -341,11 +341,11 @@ func renderFooter(ui *UI) {
 func (ui *UI) enterEdit() {
 	l := ui.currentList()
 	l.items[l.row].content = " "
-  ui.mode = editMode
+	ui.mode = editMode
 }
 
 func (ui *UI) exitEdit() {
-  ui.mode = normalMode
+	ui.mode = normalMode
 	ui.currentList().updateItem(ui.db)
 	ui.currentList().col = 0
 }
