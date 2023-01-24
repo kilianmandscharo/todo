@@ -22,11 +22,17 @@ type Item struct {
 }
 
 func (l *List) render(ui *UI) {
-	done := renderBody(ui, l)
-	renderHeader(ui, l, done)
+	renderHeader(ui, l)
+	renderBody(ui, l)
 }
 
-func renderHeader(ui *UI, l *List, done int) {
+func renderHeader(ui *UI, l *List) {
+	var done int
+	for i := range l.items {
+		if l.items[i].done {
+			done++
+		}
+	}
 	for col, r := range []rune(l.name) {
 		var style tcell.Style
 		if ui.mode == editListNameMode {
@@ -56,16 +62,11 @@ func renderHeader(ui *UI, l *List, done int) {
 	}
 }
 
-func renderBody(ui *UI, l *List) int {
+func renderBody(ui *UI, l *List) {
 	if len(l.items) == 0 {
 		ui.renderLine("Press e + n to create an entry", headerHeight)
-		return 0
 	}
-	done := 0
 	for row, item := range l.items[ui.windowTop:ui.windowBottom] {
-		if item.done {
-			done++
-		}
 		rowWithOffset := row + topOffset + headerHeight
 		rowWithW := row + ui.windowTop
 		var style tcell.Style
@@ -92,7 +93,6 @@ func renderBody(ui *UI, l *List) int {
 			ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
 		}
 	}
-	return done
 }
 
 func (l *List) down(ui *UI) {
@@ -243,9 +243,9 @@ func (l *List) deleteRuneFromName() {
 }
 
 func (l *List) markItem(db *DB) {
-    if len(l.items) == 0 {
-        return
-    }
+	if len(l.items) == 0 {
+		return
+	}
 	item := l.currentItem()
 	item.done = !item.done
 	db.updateItemDone(item.id, item.done)
