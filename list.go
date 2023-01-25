@@ -27,12 +27,6 @@ func (l *List) render(ui *UI) {
 }
 
 func renderHeader(ui *UI, l *List) {
-	var done int
-	for i := range l.items {
-		if l.items[i].done {
-			done++
-		}
-	}
 	for col, r := range []rune(l.name) {
 		var style tcell.Style
 		if ui.mode == editListNameMode {
@@ -44,22 +38,19 @@ func renderHeader(ui *UI, l *List) {
 	}
 
 	total := len(l.items)
+	var done int
+    var topLine string
 	if total == 0 {
-		return
-	}
-	topLine := fmt.Sprintf("%d / %d done", done, total)
-	ui.screen.SetContent(len(l.name)+2, 3, '-', nil, ui.styles.def)
-	ui.screen.SetContent(len(l.name)+3, 3, '-', nil, ui.styles.def)
-	ui.screen.SetContent(len(l.name)+4, 3, '-', nil, ui.styles.def)
-	var style tcell.Style
-	if done == total {
-		style = ui.styles.success
+		topLine = ""
 	} else {
-		style = ui.styles.error
-	}
-	for col, r := range []rune(topLine) {
-		ui.screen.SetContent(len(l.name)+6+col, 3, r, nil, style)
-	}
+        for i := range l.items {
+            if l.items[i].done {
+                done++
+            }
+        }
+        topLine = fmt.Sprintf("%d / %d done", done, total)
+    }
+    renderSeparator(ui, separator(ui, topLine), 5)
 }
 
 func renderBody(ui *UI, l *List) {

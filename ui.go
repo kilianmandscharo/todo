@@ -47,6 +47,8 @@ type Styles struct {
 	highlight tcell.Style
 	def       tcell.Style
 	edit      tcell.Style
+    rib       tcell.Style
+    nav       tcell.Style 
 }
 
 func newUI(debug bool) UI {
@@ -298,7 +300,7 @@ func renderListNav(ui *UI) {
 	var style tcell.Style
 	for i := range ui.lists {
 		if i == ui.current {
-			style = tcell.StyleDefault.Background(tcell.ColorBlue).Foreground(tcell.ColorBlack)
+			style = ui.styles.nav 
 		} else {
 			style = ui.styles.def
 		}
@@ -307,8 +309,9 @@ func renderListNav(ui *UI) {
 	}
 	if len(ui.lists) != 0 {
 		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, ui.styles.primary)
-	}
-	renderSeparator(ui, separator(ui, ""), 5)
+	} else {
+        renderSeparator(ui, separator(ui, ""), 5)
+    }
 }
 
 func separator(ui *UI, s string) string {
@@ -334,7 +337,7 @@ func renderSeparator(ui *UI, line string, ypos int) {
 			ypos,
 			r,
 			nil,
-			tcell.StyleDefault.Background(tcell.ColorGreen).Foreground(tcell.ColorBlack))
+            ui.styles.rib)
 	}
 }
 
@@ -435,10 +438,12 @@ func (ui *UI) exit() {
 func setStyles(ui *UI) *UI {
 	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
 	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
-	estyle := tcell.StyleDefault.Background(tcell.ColorPurple).Foreground(tcell.ColorBlack)
-	pstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorBlue)
-	successStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorGreen)
-	errorStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorRed)
+	estyle := tcell.StyleDefault.Background(tcell.ColorLightSkyBlue).Foreground(tcell.ColorBlack)
+	pstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorLightSkyBlue)
+	successStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorSeaGreen)
+	errorStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorPaleVioletRed)
+    ribStyle := tcell.StyleDefault.Background(tcell.ColorSeaGreen).Foreground(tcell.ColorBlack)
+    navStyle := tcell.StyleDefault.Background(tcell.ColorLightSkyBlue).Foreground(tcell.ColorBlack)
 	styles := Styles{
 		edit:      estyle,
 		highlight: hstyle,
@@ -446,6 +451,8 @@ func setStyles(ui *UI) *UI {
 		def:       dstyle,
 		success:   successStyle,
 		error:     errorStyle,
+        rib:       ribStyle,
+        nav:       navStyle,
 	}
 	ui.screen.SetStyle(dstyle)
 	ui.styles = styles
