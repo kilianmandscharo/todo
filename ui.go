@@ -36,19 +36,7 @@ type UI struct {
 	current      int
 	windowTop    int
 	windowBottom int
-	styles       Styles
 	mode         Mode
-}
-
-type Styles struct {
-	success   tcell.Style
-	error     tcell.Style
-	primary   tcell.Style
-	highlight tcell.Style
-	def       tcell.Style
-	edit      tcell.Style
-    rib       tcell.Style
-    nav       tcell.Style 
 }
 
 func newUI(debug bool) UI {
@@ -69,8 +57,8 @@ func newUI(debug bool) UI {
 	}
 	db.init()
 	ui := &UI{screen: s, db: db}
-	ui = setStyles(ui)
 	ui.mode = normalMode
+	ui.screen.SetStyle(blackWhite)
 	return *ui
 }
 
@@ -126,8 +114,8 @@ func (ui *UI) deleteList() {
 	}
 	if len(ui.lists) == 1 {
 		ui.lists = nil
-    ui.windowBottom = 0
-    ui.windowTop = 0
+		ui.windowBottom = 0
+		ui.windowTop = 0
 		return
 	}
 	i := ui.current
@@ -193,7 +181,7 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 		case deleteListMode:
 			handleDeleteListModeEv(ui, ev.Key(), ev.Rune())
 		case editMode:
-			handleEditMode(ui, ev.Key(), ev.Rune())
+			handleEditModeEv(ui, ev.Key(), ev.Rune())
 		}
 	}
 }
@@ -244,7 +232,7 @@ func handleEntryModeEv(ui *UI, key tcell.Key, r rune) {
 		ui.mode = normalMode
 	} else if r == 'n' {
 		ui.currentList().add(ui.db, ui)
-		ui.mode = normalMode
+		ui.mode = editMode
 	} else if r == 'e' && len(ui.currentList().items) != 0 {
 		ui.enterEdit()
 	} else if r == 'b' {
@@ -262,24 +250,34 @@ func handleDeleteListModeEv(ui *UI, key tcell.Key, r rune) {
 }
 
 func handleEditListNameModeEv(ui *UI, key tcell.Key, r rune) {
+	list := ui.currentList()
 	if key == tcell.KeyEscape {
 		ui.exitNameEdit()
 	} else if r == 127 {
 		ui.currentList().deleteRuneFromName()
+	} else if key == tcell.KeyLeft {
+		list.cursorLeft()
+	} else if key == tcell.KeyRight {
+		list.cursorRight()
 	} else {
 		ui.currentList().addRuneToName(r)
 	}
 }
 
-func handleEditMode(ui *UI, key tcell.Key, r rune) {
+func handleEditModeEv(ui *UI, key tcell.Key, r rune) {
 	list := ui.currentList()
 	if key == tcell.KeyEscape {
 		ui.exitEdit()
 	} else if r == 127 {
 		list.deleteRune()
+	} else if key == tcell.KeyLeft {
+		list.cursorLeft()
+	} else if key == tcell.KeyRight {
+		list.cursorRight()
 	} else {
 		list.addRune(r)
 	}
+
 }
 
 func (ui *UI) render() {
@@ -300,18 +298,18 @@ func renderListNav(ui *UI) {
 	var style tcell.Style
 	for i := range ui.lists {
 		if i == ui.current {
-			style = ui.styles.nav 
+			style = lightSkyBlueBlack
 		} else {
-			style = ui.styles.def
+			style = blackWhite
 		}
 		r := strconv.Itoa(i + 1)
 		ui.screen.SetContent(i*2+leftOffset, 1, []rune(r)[0], nil, style)
 	}
 	if len(ui.lists) != 0 {
-		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, ui.styles.primary)
+		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, blackLightSkyBlue)
 	} else {
-        renderSeparator(ui, separator(ui, ""), 5)
-    }
+		renderSeparator(ui, separator(ui, ""), 5)
+	}
 }
 
 func separator(ui *UI, s string) string {
@@ -337,13 +335,13 @@ func renderSeparator(ui *UI, line string, ypos int) {
 			ypos,
 			r,
 			nil,
-            ui.styles.rib)
+			seaGreenBlack)
 	}
 }
 
 func (ui *UI) renderLine(line string, row int) {
 	for col, r := range []rune(line) {
-		ui.screen.SetContent(col+leftOffset, row+topOffset, r, nil, ui.styles.def)
+		ui.screen.SetContent(col+leftOffset, row+topOffset, r, nil, blackWhite)
 	}
 }
 
@@ -357,22 +355,27 @@ func renderFooter(ui *UI) {
 	} else if ui.mode == deleteListMode {
 		line = "Delete current list? y / n"
 	} else if ui.mode == editListNameMode {
-    line = "Editing list name... - (esc)ape"
-  } else if ui.mode == editMode {
-    line = "Editing entry... - (esc)ape"
-  } else if len(ui.lists) != 0 {
+		line = "Editing list name... - (esc)ape"
+	} else if ui.mode == editMode {
+		line = "Editing entry... - (esc)ape"
+	} else if len(ui.lists) != 0 {
 		line = "(enter) mark - (l)ist mode"
-    if len(ui.currentList().items) != 0 {
-      line += " - (e)ntry mode"
-    }
-    line += " - e(x)it"
+		if len(ui.currentList().items) != 0 {
+			line += " - (e)ntry mode"
+		}
+		line += " - e(x)it"
 	}
 	renderSeparator(ui, separator(ui, line), footerYPos)
 }
 
 func (ui *UI) enterEdit() {
 	l := ui.currentList()
-	l.items[l.row].content = " "
+	itemLength := len(l.currentItem().content)
+	if itemLength == 1 && l.currentItem().content[0] == ' ' {
+		l.col = 0
+	} else {
+		l.col = itemLength
+	}
 	ui.mode = editMode
 }
 
@@ -383,7 +386,12 @@ func (ui *UI) exitEdit() {
 }
 
 func (ui *UI) enterNameEdit() {
-	ui.currentList().name = " "
+	l := ui.currentList()
+	if len(l.name) == 1 && l.name[0] == ' ' {
+		l.col = 0
+	} else {
+		l.col = len(l.name)
+	}
 	ui.mode = editListNameMode
 }
 
@@ -433,28 +441,4 @@ func (ui *UI) exit() {
 	ui.saveOrder()
 	ui.screen.Fini()
 	os.Exit(0)
-}
-
-func setStyles(ui *UI) *UI {
-	dstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorWhite)
-	hstyle := tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack)
-	estyle := tcell.StyleDefault.Background(tcell.ColorLightSkyBlue).Foreground(tcell.ColorBlack)
-	pstyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorLightSkyBlue)
-	successStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorSeaGreen)
-	errorStyle := tcell.StyleDefault.Background(tcell.ColorBlack).Foreground(tcell.ColorPaleVioletRed)
-    ribStyle := tcell.StyleDefault.Background(tcell.ColorSeaGreen).Foreground(tcell.ColorBlack)
-    navStyle := tcell.StyleDefault.Background(tcell.ColorLightSkyBlue).Foreground(tcell.ColorBlack)
-	styles := Styles{
-		edit:      estyle,
-		highlight: hstyle,
-		primary:   pstyle,
-		def:       dstyle,
-		success:   successStyle,
-		error:     errorStyle,
-        rib:       ribStyle,
-        nav:       navStyle,
-	}
-	ui.screen.SetStyle(dstyle)
-	ui.styles = styles
-	return ui
 }

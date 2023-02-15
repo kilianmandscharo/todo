@@ -23,9 +23,9 @@ func uiValsDebugPrint(ui *UI) {
 		return
 	}
 	w, h := ui.screen.Size()
-	line := fmt.Sprintf("Width: %d, Height: %d, Wtop: %d, Wbottom: %d, row: %d", w, h, ui.windowTop, ui.windowBottom, ui.currentList().row)
+	line := fmt.Sprintf("Width: %d, Height: %d, Wtop: %d, Wbottom: %d, row: %d, col: %d", w, h, ui.windowTop, ui.windowBottom, ui.currentList().row, ui.currentList().col)
 	for col, r := range []rune(line) {
-		ui.screen.SetContent(col+1, 0, r, nil, ui.styles.def)
+		ui.screen.SetContent(col+1, 0, r, nil, blackWhite)
 	}
 }
 

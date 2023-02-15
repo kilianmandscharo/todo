@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"unicode"
 
 	"github.com/gdamore/tcell"
 )
@@ -27,30 +26,30 @@ func (l *List) render(ui *UI) {
 }
 
 func renderHeader(ui *UI, l *List) {
-	for col, r := range []rune(l.name) {
+	for col, r := range []rune(l.name + " ") {
 		var style tcell.Style
-		if ui.mode == editListNameMode {
-			style = ui.styles.edit
+		if ui.mode == editListNameMode && col == l.col {
+			style = lightSkyBlueBlack
 		} else {
-			style = ui.styles.def
+			style = blackWhite
 		}
 		ui.screen.SetContent(leftOffset+col, 3, r, nil, style)
 	}
 
 	total := len(l.items)
 	var done int
-    var topLine string
+	var topLine string
 	if total == 0 {
 		topLine = ""
 	} else {
-        for i := range l.items {
-            if l.items[i].done {
-                done++
-            }
-        }
-        topLine = fmt.Sprintf("%d / %d done", done, total)
-    }
-    renderSeparator(ui, separator(ui, topLine), 5)
+		for i := range l.items {
+			if l.items[i].done {
+				done++
+			}
+		}
+		topLine = fmt.Sprintf("%d / %d done", done, total)
+	}
+	renderSeparator(ui, separator(ui, topLine), 5)
 }
 
 func renderBody(ui *UI, l *List) {
@@ -63,12 +62,12 @@ func renderBody(ui *UI, l *List) {
 		var style tcell.Style
 		if ui.mode != editListNameMode && rowWithW == l.row {
 			if ui.mode == editMode {
-				style = ui.styles.edit
+				style = blackWhite
 			} else {
-				style = ui.styles.highlight
+				style = whiteBlack
 			}
 		} else {
-			style = ui.styles.def
+			style = blackWhite
 		}
 		var marker rune
 		if item.done {
@@ -76,12 +75,22 @@ func renderBody(ui *UI, l *List) {
 		} else {
 			marker = ' '
 		}
-		ui.screen.SetContent(0+leftOffset, rowWithOffset, '[', nil, ui.styles.def)
-		ui.screen.SetContent(1+leftOffset, rowWithOffset, marker, nil, ui.styles.def)
-		ui.screen.SetContent(2+leftOffset, rowWithOffset, ']', nil, ui.styles.def)
-		for col, r := range []rune(item.content) {
+		ui.screen.SetContent(0+leftOffset, rowWithOffset, '[', nil, blackWhite)
+		ui.screen.SetContent(1+leftOffset, rowWithOffset, marker, nil, blackWhite)
+		ui.screen.SetContent(2+leftOffset, rowWithOffset, ']', nil, blackWhite)
+		var content string
+		if rowWithW == l.row && ui.mode == editMode {
+			content = item.content + " "
+		} else {
+			content = item.content
+		}
+		for col, r := range []rune(content) {
 			colWithOffset := col + leftOffset + 4
-			ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
+			if col == l.col && rowWithW == l.row && ui.mode == editMode {
+				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, lightSkyBlueBlack)
+			} else {
+				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
+			}
 		}
 	}
 }
@@ -174,7 +183,7 @@ func (l *List) add(db *DB, ui *UI) {
 	}
 	newItem := Item{
 		id:      id,
-		content: "New Entry",
+		content: " ",
 	}
 	nitems := len(l.items)
 	space := ui.height() - headerHeight - topOffset - bottomOffset
@@ -183,53 +192,52 @@ func (l *List) add(db *DB, ui *UI) {
 	}
 	if nitems == 0 || nitems-1 == i {
 		l.items = append(l.items, newItem)
+		l.row++
 		return
 	}
 	l.items = append(l.items[:i+1], l.items[i:]...)
 	l.items[i+1] = newItem
+	l.row++
 }
 
 func (l *List) addRune(r rune) {
-	if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '_' || r == '.' || r == '-' {
-		if len(l.items[l.row].content) == 1 && l.items[l.row].content[0] == ' ' {
-			l.items[l.row].content = string(r)
-		} else {
-			l.items[l.row].content += string(r)
-		}
-		l.col++
+	content := l.currentItem().content
+	if len(content) == 1 && content[0] == ' ' {
+		l.items[l.row].content = string(r)
+	} else {
+		l.items[l.row].content = content[:l.col] + string(r) + content[l.col:]
 	}
+	l.col++
 }
 
 func (l *List) deleteRune() {
-	last := len(l.items[l.row].content) - 1
-	if last > 0 {
-		l.items[l.row].content = l.items[l.row].content[:last]
+	item := l.currentItem()
+	content := item.content
+	if l.col > 0 {
+		item.content = content[:l.col-1] + content[l.col:]
 		l.col--
-	}
-	if last == 0 {
-		l.items[l.row].content = " "
+		if l.col == 0 {
+			item.content = " "
+		}
 	}
 }
 
 func (l *List) addRuneToName(r rune) {
-	if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '_' || r == '.' || r == '-' {
-		if len(l.name) == 1 && l.name[0] == ' ' {
-			l.name = string(r)
-		} else {
-			l.name += string(r)
-		}
-		l.col++
+	if len(l.name) == 1 && l.name[0] == ' ' {
+		l.name = string(r)
+	} else {
+		l.name = l.name[:l.col] + string(r) + l.name[l.col:]
 	}
+	l.col++
 }
 
 func (l *List) deleteRuneFromName() {
-	last := len(l.name) - 1
-	if last > 0 {
-		l.name = l.name[:last]
+	if l.col > 0 {
+		l.name = l.name[:l.col-1] + l.name[l.col:]
 		l.col--
-	}
-	if last == 0 {
-		l.name = " "
+		if l.col == 0 {
+			l.name = " "
+		}
 	}
 }
 
@@ -258,4 +266,16 @@ func (l *List) itemById(id int) *Item {
 		}
 	}
 	return nil
+}
+
+func (l *List) cursorLeft() {
+	if l.col > 0 {
+		l.col--
+	}
+}
+
+func (l *List) cursorRight() {
+	if l.col < len(l.currentItem().content) {
+		l.col++
+	}
 }
