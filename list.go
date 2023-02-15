@@ -201,6 +201,9 @@ func (l *List) add(db *DB, ui *UI) {
 }
 
 func (l *List) addRune(r rune) {
+    if r == ' ' && l.col == 0 { 
+        return
+    }
 	content := l.currentItem().content
 	if len(content) == 1 && content[0] == ' ' {
 		l.items[l.row].content = string(r)
@@ -216,13 +219,16 @@ func (l *List) deleteRune() {
 	if l.col > 0 {
 		item.content = content[:l.col-1] + content[l.col:]
 		l.col--
-		if l.col == 0 {
+		if l.col == 0 && len(item.content) == 0 {
 			item.content = " "
 		}
 	}
 }
 
 func (l *List) addRuneToName(r rune) {
+    if r == ' ' && l.col == 0 { 
+        return
+    }
 	if len(l.name) == 1 && l.name[0] == ' ' {
 		l.name = string(r)
 	} else {
@@ -235,7 +241,7 @@ func (l *List) deleteRuneFromName() {
 	if l.col > 0 {
 		l.name = l.name[:l.col-1] + l.name[l.col:]
 		l.col--
-		if l.col == 0 {
+		if l.col == 0 && len(l.name) == 0 {
 			l.name = " "
 		}
 	}
