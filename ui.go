@@ -222,7 +222,7 @@ func handleListModeEv(ui *UI, key tcell.Key, r rune) {
 		ui.mode = normalMode
 	} else if r == 'e' && len(ui.lists) != 0 {
 		ui.enterNameEdit()
-	} else if r == 'b' {
+	} else if r == 'b' || key == tcell.KeyEsc {
 		ui.mode = normalMode
 	}
 }
@@ -238,7 +238,7 @@ func handleEntryModeEv(ui *UI, key tcell.Key, r rune) {
 		ui.mode = editMode
 	} else if r == 'e' && len(ui.currentList().items) != 0 {
 		ui.enterEdit()
-	} else if r == 'b' {
+	} else if r == 'b' || key == tcell.KeyEsc {
 		ui.mode = normalMode
 	}
 }
@@ -259,9 +259,9 @@ func handleEditListNameModeEv(ui *UI, key tcell.Key, r rune) {
 	} else if r == 127 {
 		ui.currentList().deleteRuneFromName()
 	} else if key == tcell.KeyLeft {
-		list.cursorLeft()
+		list.cursorLeftListName()
 	} else if key == tcell.KeyRight {
-		list.cursorRight()
+		list.cursorRightListName()
 	} else {
 		ui.currentList().addRuneToName(r)
 	}
@@ -274,9 +274,9 @@ func handleEditModeEv(ui *UI, key tcell.Key, r rune) {
 	} else if r == 127 {
 		list.deleteRune()
 	} else if key == tcell.KeyLeft {
-		list.cursorLeft()
+		list.cursorLeftEntry()
 	} else if key == tcell.KeyRight {
-		list.cursorRight()
+		list.cursorRightEntry()
 	} else {
 		list.addRune(r)
 	}
@@ -333,12 +333,12 @@ func separator(ui *UI, s string) string {
 }
 
 func renderSeparator(ui *UI, line string, ypos int) {
-  var style tcell.Style
-  if ui.mode == normalMode {
-    style = seaGreenBlack
-  } else {
-    style = lightSkyBlueBlack
-  }
+	var style tcell.Style
+	if ui.mode == normalMode {
+		style = seaGreenBlack
+	} else {
+		style = lightSkyBlueBlack
+	}
 	for col, r := range []rune(line) {
 		ui.screen.SetContent(
 			col+leftOffset,

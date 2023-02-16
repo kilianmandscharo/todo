@@ -272,14 +272,26 @@ func (l *List) itemById(id int) *Item {
 	return nil
 }
 
-func (l *List) cursorLeft() {
+func (l *List) cursorLeftEntry() {
 	if l.col > 0 {
 		l.col--
 	}
 }
 
-func (l *List) cursorRight() {
+func (l *List) cursorRightEntry() {
 	if l.col < len(l.currentItem().content) {
+		l.col++
+	}
+}
+
+func (l *List) cursorLeftListName() {
+	if l.col > 0 {
+		l.col--
+	}
+}
+
+func (l *List) cursorRightListName() {
+	if l.col < len(l.name) {
 		l.col++
 	}
 }
