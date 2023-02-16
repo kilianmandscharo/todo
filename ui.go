@@ -231,7 +231,9 @@ func handleEntryModeEv(ui *UI, key tcell.Key, r rune) {
 		ui.currentList().delete(ui.db, ui)
 		ui.mode = normalMode
 	} else if r == 'n' {
-		ui.currentList().add(ui.db, ui)
+        list := ui.currentList()
+		list.add(ui.db, ui)
+        list.down(ui)
 		ui.mode = editMode
 	} else if r == 'e' && len(ui.currentList().items) != 0 {
 		ui.enterEdit()

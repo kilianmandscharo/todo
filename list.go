@@ -192,12 +192,10 @@ func (l *List) add(db *DB, ui *UI) {
 	}
 	if nitems == 0 || nitems-1 == i {
 		l.items = append(l.items, newItem)
-		l.row++
 		return
 	}
 	l.items = append(l.items[:i+1], l.items[i:]...)
 	l.items[i+1] = newItem
-	l.row++
 }
 
 func (l *List) addRune(r rune) {
