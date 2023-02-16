@@ -302,7 +302,7 @@ func renderListNav(ui *UI) {
 	var style tcell.Style
 	for i := range ui.lists {
 		if i == ui.current {
-			style = secondaryDark
+			style = primaryLight
 		} else {
 			style = darkLight
 		}
@@ -310,7 +310,7 @@ func renderListNav(ui *UI) {
 		ui.screen.SetContent(i*2+leftOffset, 1, []rune(r)[0], nil, style)
 	}
 	if len(ui.lists) != 0 {
-		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, darkSecondary)
+		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, darkPrimary)
 	} else {
 		renderTopSeparator(ui, separator(ui, ""), 5)
 	}
@@ -335,9 +335,9 @@ func separator(ui *UI, s string) string {
 func renderBottomSeparator(ui *UI, line string, ypos int) {
 	var style tcell.Style
 	if ui.mode == normalMode {
-		style = primaryDark
+		style = primaryLight
 	} else {
-		style = secondaryDark
+		style = secondaryLight
 	}
 	for col, r := range []rune(line) {
 		ui.screen.SetContent(
@@ -356,7 +356,7 @@ func renderTopSeparator(ui *UI, line string, ypos int) {
 			ypos,
 			r,
 			nil,
-			primaryDark)
+			primaryLight)
 	}
 }
 

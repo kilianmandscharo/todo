@@ -29,7 +29,7 @@ func renderHeader(ui *UI, l *List) {
 	for col, r := range []rune(l.name + " ") {
 		var style tcell.Style
 		if ui.mode == editListNameMode && col == l.col {
-			style = secondaryDark
+			style = secondaryLight
 		} else {
 			style = darkLight
 		}
@@ -64,7 +64,7 @@ func renderBody(ui *UI, l *List) {
 			if ui.mode == editMode {
 				style = darkLight
 			} else {
-				style = lightDark
+				style = primaryLight
 			}
 		} else {
 			style = darkLight
@@ -87,7 +87,7 @@ func renderBody(ui *UI, l *List) {
 		for col, r := range []rune(content) {
 			colWithOffset := col + leftOffset + 4
 			if col == l.col && rowWithW == l.row && ui.mode == editMode {
-				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, secondaryDark)
+				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, secondaryLight)
 			} else {
 				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
 			}

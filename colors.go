@@ -2,18 +2,18 @@ package main
 
 import "github.com/gdamore/tcell"
 
-var dark tcell.Color = tcell.ColorBlack
-var light tcell.Color = tcell.ColorWhite
-var primary tcell.Color = tcell.ColorSeaGreen
-var secondary tcell.Color = tcell.ColorLightSkyBlue
+var dark tcell.Color = tcell.NewRGBColor(26, 27, 38)
+var light tcell.Color = tcell.NewRGBColor(240, 240, 240)
+var primary tcell.Color = tcell.NewRGBColor(23, 111, 160)
+var secondary tcell.Color = tcell.NewRGBColor(63, 148, 100)
 
 // bgcolorFgcolor
 var darkPrimary = createStyle(dark, primary)
 var darkSecondary = createStyle(dark, secondary)
 var darkLight = createStyle(dark, light)
 var lightDark = createStyle(light, dark)
-var primaryDark = createStyle(primary, dark)
-var secondaryDark = createStyle(secondary, dark)
+var primaryLight = createStyle(primary, light)
+var secondaryLight = createStyle(secondary, light)
 
 func createStyle(bg, fg tcell.Color) tcell.Style {
 	return tcell.StyleDefault.Background(bg).Foreground(fg)
