@@ -287,7 +287,7 @@ func (ui *UI) render() {
 	renderListNav(ui)
 	renderCurrentList(ui)
 	renderFooter(ui)
-	// uiValsDebugPrint(ui)
+	uiValsDebugPrint(ui)
 }
 
 func renderCurrentList(ui *UI) {
@@ -312,7 +312,7 @@ func renderListNav(ui *UI) {
 	if len(ui.lists) != 0 {
 		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, blackLightSkyBlue)
 	} else {
-		renderSeparator(ui, separator(ui, ""), 5)
+		renderTopSeparator(ui, separator(ui, ""), 5)
 	}
 }
 
@@ -332,7 +332,7 @@ func separator(ui *UI, s string) string {
 	return line.String()
 }
 
-func renderSeparator(ui *UI, line string, ypos int) {
+func renderBottomSeparator(ui *UI, line string, ypos int) {
 	var style tcell.Style
 	if ui.mode == normalMode {
 		style = seaGreenBlack
@@ -346,6 +346,17 @@ func renderSeparator(ui *UI, line string, ypos int) {
 			r,
 			nil,
 			style)
+	}
+}
+
+func renderTopSeparator(ui *UI, line string, ypos int) {
+	for col, r := range []rune(line) {
+		ui.screen.SetContent(
+			col+leftOffset,
+			ypos,
+			r,
+			nil,
+			seaGreenBlack)
 	}
 }
 
@@ -375,7 +386,7 @@ func renderFooter(ui *UI) {
 		}
 		line += " - e(x)it"
 	}
-	renderSeparator(ui, separator(ui, line), footerYPos)
+	renderBottomSeparator(ui, separator(ui, line), footerYPos)
 }
 
 func (ui *UI) enterEdit() {

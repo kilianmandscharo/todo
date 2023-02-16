@@ -49,7 +49,7 @@ func renderHeader(ui *UI, l *List) {
 		}
 		topLine = fmt.Sprintf("%d / %d done", done, total)
 	}
-	renderSeparator(ui, separator(ui, topLine), 5)
+	renderTopSeparator(ui, separator(ui, topLine), 5)
 }
 
 func renderBody(ui *UI, l *List) {
