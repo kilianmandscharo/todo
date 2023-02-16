@@ -29,9 +29,9 @@ func renderHeader(ui *UI, l *List) {
 	for col, r := range []rune(l.name + " ") {
 		var style tcell.Style
 		if ui.mode == editListNameMode && col == l.col {
-			style = lightSkyBlueBlack
+			style = secondaryDark
 		} else {
-			style = blackWhite
+			style = darkLight
 		}
 		ui.screen.SetContent(leftOffset+col, 3, r, nil, style)
 	}
@@ -62,12 +62,12 @@ func renderBody(ui *UI, l *List) {
 		var style tcell.Style
 		if ui.mode != editListNameMode && rowWithW == l.row {
 			if ui.mode == editMode {
-				style = blackWhite
+				style = darkLight
 			} else {
-				style = whiteBlack
+				style = lightDark
 			}
 		} else {
-			style = blackWhite
+			style = darkLight
 		}
 		var marker rune
 		if item.done {
@@ -75,9 +75,9 @@ func renderBody(ui *UI, l *List) {
 		} else {
 			marker = ' '
 		}
-		ui.screen.SetContent(0+leftOffset, rowWithOffset, '[', nil, blackWhite)
-		ui.screen.SetContent(1+leftOffset, rowWithOffset, marker, nil, blackWhite)
-		ui.screen.SetContent(2+leftOffset, rowWithOffset, ']', nil, blackWhite)
+		ui.screen.SetContent(0+leftOffset, rowWithOffset, '[', nil, darkLight)
+		ui.screen.SetContent(1+leftOffset, rowWithOffset, marker, nil, darkLight)
+		ui.screen.SetContent(2+leftOffset, rowWithOffset, ']', nil, darkLight)
 		var content string
 		if rowWithW == l.row && ui.mode == editMode {
 			content = item.content + " "
@@ -87,7 +87,7 @@ func renderBody(ui *UI, l *List) {
 		for col, r := range []rune(content) {
 			colWithOffset := col + leftOffset + 4
 			if col == l.col && rowWithW == l.row && ui.mode == editMode {
-				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, lightSkyBlueBlack)
+				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, secondaryDark)
 			} else {
 				ui.screen.SetContent(colWithOffset, rowWithOffset, r, nil, style)
 			}

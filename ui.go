@@ -59,7 +59,7 @@ func newUI(debug bool) UI {
 	db.init()
 	ui := &UI{screen: s, db: db}
 	ui.mode = normalMode
-	ui.screen.SetStyle(blackWhite)
+	ui.screen.SetStyle(darkLight)
 	return *ui
 }
 
@@ -287,7 +287,7 @@ func (ui *UI) render() {
 	renderListNav(ui)
 	renderCurrentList(ui)
 	renderFooter(ui)
-	uiValsDebugPrint(ui)
+	// uiValsDebugPrint(ui)
 }
 
 func renderCurrentList(ui *UI) {
@@ -302,15 +302,15 @@ func renderListNav(ui *UI) {
 	var style tcell.Style
 	for i := range ui.lists {
 		if i == ui.current {
-			style = lightSkyBlueBlack
+			style = secondaryDark
 		} else {
-			style = blackWhite
+			style = darkLight
 		}
 		r := strconv.Itoa(i + 1)
 		ui.screen.SetContent(i*2+leftOffset, 1, []rune(r)[0], nil, style)
 	}
 	if len(ui.lists) != 0 {
-		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, blackLightSkyBlue)
+		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, darkSecondary)
 	} else {
 		renderTopSeparator(ui, separator(ui, ""), 5)
 	}
@@ -335,9 +335,9 @@ func separator(ui *UI, s string) string {
 func renderBottomSeparator(ui *UI, line string, ypos int) {
 	var style tcell.Style
 	if ui.mode == normalMode {
-		style = seaGreenBlack
+		style = primaryDark
 	} else {
-		style = lightSkyBlueBlack
+		style = secondaryDark
 	}
 	for col, r := range []rune(line) {
 		ui.screen.SetContent(
@@ -356,13 +356,13 @@ func renderTopSeparator(ui *UI, line string, ypos int) {
 			ypos,
 			r,
 			nil,
-			seaGreenBlack)
+			primaryDark)
 	}
 }
 
 func (ui *UI) renderLine(line string, row int) {
 	for col, r := range []rune(line) {
-		ui.screen.SetContent(col+leftOffset, row+topOffset, r, nil, blackWhite)
+		ui.screen.SetContent(col+leftOffset, row+topOffset, r, nil, darkLight)
 	}
 }
 
