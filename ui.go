@@ -23,6 +23,7 @@ const (
 )
 
 const headerHeight = 6
+const footerHeight = 2
 const leftOffset = 1
 const topOffset = 1
 const bottomOffset = 1
@@ -231,9 +232,9 @@ func handleEntryModeEv(ui *UI, key tcell.Key, r rune) {
 		ui.currentList().delete(ui.db, ui)
 		ui.mode = normalMode
 	} else if r == 'n' {
-        list := ui.currentList()
+		list := ui.currentList()
 		list.add(ui.db, ui)
-        list.down(ui)
+		list.down(ui)
 		ui.mode = editMode
 	} else if r == 'e' && len(ui.currentList().items) != 0 {
 		ui.enterEdit()
@@ -286,6 +287,7 @@ func (ui *UI) render() {
 	renderListNav(ui)
 	renderCurrentList(ui)
 	renderFooter(ui)
+	// uiValsDebugPrint(ui)
 }
 
 func renderCurrentList(ui *UI) {
@@ -331,13 +333,19 @@ func separator(ui *UI, s string) string {
 }
 
 func renderSeparator(ui *UI, line string, ypos int) {
+  var style tcell.Style
+  if ui.mode == normalMode {
+    style = seaGreenBlack
+  } else {
+    style = lightSkyBlueBlack
+  }
 	for col, r := range []rune(line) {
 		ui.screen.SetContent(
 			col+leftOffset,
 			ypos,
 			r,
 			nil,
-			seaGreenBlack)
+			style)
 	}
 }
 
@@ -403,13 +411,17 @@ func (ui *UI) exitNameEdit() {
 	ui.currentList().col = 0
 }
 
+func (ui *UI) listSpaceAvailable() int {
+	return ui.height() - topOffset - headerHeight - bottomOffset - footerHeight
+}
+
 func (ui *UI) calculateWindow() {
 	if len(ui.lists) == 0 {
 		return
 	}
 	_, h := ui.screen.Size()
 	topOffset := topOffset + headerHeight
-	bottomOffset := 1
+	bottomOffset := bottomOffset + footerHeight
 	listLength := len(ui.currentList().items)
 	spaceNeeded := listLength + topOffset + bottomOffset
 	var newWindowBottom int

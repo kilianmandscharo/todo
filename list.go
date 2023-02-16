@@ -155,7 +155,7 @@ func (l *List) delete(db *DB, ui *UI) {
 		return
 	}
 	nitems := len(l.items)
-	space := ui.height() - headerHeight - topOffset - bottomOffset
+	space := ui.listSpaceAvailable() 
 	if nitems-1 < space {
 		ui.windowBottom--
 	} else if ui.windowTop > 0 {
@@ -186,7 +186,7 @@ func (l *List) add(db *DB, ui *UI) {
 		content: " ",
 	}
 	nitems := len(l.items)
-	space := ui.height() - headerHeight - topOffset - bottomOffset
+	space := ui.listSpaceAvailable()
 	if nitems+1 <= space && ui.windowTop < space {
 		ui.windowBottom++
 	}
@@ -199,9 +199,9 @@ func (l *List) add(db *DB, ui *UI) {
 }
 
 func (l *List) addRune(r rune) {
-    if r == ' ' && l.col == 0 { 
-        return
-    }
+	if r == ' ' && l.col == 0 {
+		return
+	}
 	content := l.currentItem().content
 	if len(content) == 1 && content[0] == ' ' {
 		l.items[l.row].content = string(r)
@@ -224,9 +224,9 @@ func (l *List) deleteRune() {
 }
 
 func (l *List) addRuneToName(r rune) {
-    if r == ' ' && l.col == 0 { 
-        return
-    }
+	if r == ' ' && l.col == 0 {
+		return
+	}
 	if len(l.name) == 1 && l.name[0] == ' ' {
 		l.name = string(r)
 	} else {
