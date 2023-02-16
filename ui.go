@@ -40,7 +40,7 @@ type UI struct {
 	mode         Mode
 }
 
-func newUI(debug bool) UI {
+func newUI(debug bool) *UI {
 	var s tcell.Screen
 	if !debug {
 		screen, err := tcell.NewScreen()
@@ -60,7 +60,7 @@ func newUI(debug bool) UI {
 	ui := &UI{screen: s, db: db}
 	ui.mode = normalMode
 	ui.screen.SetStyle(darkLight)
-	return *ui
+	return ui
 }
 
 func (ui *UI) load() {
@@ -254,7 +254,7 @@ func handleDeleteListModeEv(ui *UI, key tcell.Key, r rune) {
 
 func handleEditListNameModeEv(ui *UI, key tcell.Key, r rune) {
 	list := ui.currentList()
-	if key == tcell.KeyEscape {
+	if key == tcell.KeyEscape || key == tcell.KeyEnter {
 		ui.exitNameEdit()
 	} else if r == 127 {
 		ui.currentList().deleteRuneFromName()
@@ -269,7 +269,7 @@ func handleEditListNameModeEv(ui *UI, key tcell.Key, r rune) {
 
 func handleEditModeEv(ui *UI, key tcell.Key, r rune) {
 	list := ui.currentList()
-	if key == tcell.KeyEscape {
+	if key == tcell.KeyEscape || key == tcell.KeyEnter {
 		ui.exitEdit()
 	} else if r == 127 {
 		list.deleteRune()
