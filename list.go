@@ -47,7 +47,7 @@ func renderHeader(ui *UI, l *List) {
 				done++
 			}
 		}
-		topLine = padChunk(fmt.Sprintf("%d / %d done", done, total)) 
+		topLine = padChunk(fmt.Sprintf("%d / %d done", done, total))
 	}
 	renderTopSeparator(ui, separator(ui, topLine, 0), 5)
 }
@@ -155,7 +155,7 @@ func (l *List) delete(db *DB, ui *UI) {
 		return
 	}
 	nitems := len(l.items)
-	space := ui.listSpaceAvailable() 
+	space := ui.listSpaceAvailable()
 	if nitems-1 < space {
 		ui.windowBottom--
 	} else if ui.windowTop > 0 {

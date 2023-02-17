@@ -29,7 +29,15 @@ func newDatabase() (*DB, error) {
 }
 
 func (db *DB) init() error {
-	_, err := db.db.Exec("CREATE TABLE IF NOT EXISTS list (id INTEGER PRIMARY KEY ASC, name TEXT, item_order TEXT)")
+	_, err := db.db.Exec("CREATE TABLE IF NOT EXISTS ui (id INTEGER, list_order TEXT, UNIQUE(id))")
+	if err != nil {
+		return err
+	}
+	_, err = db.db.Exec("INSERT OR IGNORE INTO ui (id, list_order) VALUES(1, '')")
+	if err != nil {
+		return err
+	}
+	_, err = db.db.Exec("CREATE TABLE IF NOT EXISTS list (id INTEGER PRIMARY KEY ASC, name TEXT, item_order TEXT)")
 	if err != nil {
 		return err
 	}
@@ -152,11 +160,13 @@ func (db *DB) getItems(listID int) ([]Item, error) {
 }
 
 func (db *DB) saveOrder(lists []List) error {
-	for _, l := range lists {
+	listOrder := make(map[int]int)
+	for i, l := range lists {
+		listOrder[i] = l.ID
 		items := l.items
 		order := make(map[int]int)
-		for i, item := range items {
-			order[i] = item.id
+		for j, item := range items {
+			order[j] = item.id
 		}
 		orderString, err := json.Marshal(order)
 		if err != nil {
@@ -167,25 +177,45 @@ func (db *DB) saveOrder(lists []List) error {
 			return err
 		}
 	}
+	listOrderString, err := json.Marshal(listOrder)
+	if err != nil {
+		return err
+	}
+	_, err = db.db.Exec("UPDATE ui SET list_order = ? WHERE id = ?", string(listOrderString), 1)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (db *DB) loadOrder() ([]map[int]int, error) {
-	var orders []map[int]int
-	rows, err := db.db.Query("SELECT item_order FROM list")
-	if err != nil {
+func (db *DB) loadListOrder() (map[int]int, error) {
+	row := db.db.QueryRow("SELECT list_order FROM ui WHERE id = 1")
+	var orderString string
+	if err := row.Scan(&orderString); err != nil {
 		return nil, err
 	}
-	for rows.Next() {
-		var orderString string
-		if err := rows.Scan(&orderString); err != nil {
-			return nil, err
-		}
-		var order map[int]int
-		if err := json.Unmarshal([]byte(orderString), &order); err != nil {
-			return nil, err
-		}
-		orders = append(orders, order)
+	if len(orderString) == 0 {
+		return nil, nil
 	}
-	return orders, nil
+	var order map[int]int
+	if err := json.Unmarshal([]byte(orderString), &order); err != nil {
+		return nil, err
+	}
+	return order, nil
+}
+
+func (db *DB) loadItemOrder(listId int) (map[int]int, error) {
+	row := db.db.QueryRow("SELECT item_order FROM list WHERE id = ?", listId)
+	var orderString string
+	if err := row.Scan(&orderString); err != nil {
+		return nil, err
+	}
+	if len(orderString) == 0 {
+		return nil, nil
+	}
+	var order map[int]int
+	if err := json.Unmarshal([]byte(orderString), &order); err != nil {
+		return nil, err
+	}
+	return order, nil
 }

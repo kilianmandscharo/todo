@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -86,8 +85,7 @@ func (ui *UI) load() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ui.lists = lists
-	ui.loadOrder()
+	ui.loadOrder(lists)
 	ui.calculateWindow()
 }
 
@@ -154,24 +152,45 @@ func (ui *UI) saveOrder() {
 	}
 }
 
-func (ui *UI) loadOrder() {
-	orders, err := ui.db.loadOrder()
+func (ui *UI) loadOrder(lists []List) error {
+	order, err := ui.db.loadListOrder()
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	for i, order := range orders {
-		if len(order) == 0 {
+	if order == nil || len(order) == 0 || len(order) != len(lists) {
+		ui.lists = lists
+	} else {
+		var orderedLists []List
+		for i := 0; i < len(order); i++ {
+			for j := range lists {
+				if lists[j].ID == order[i] {
+					orderedLists = append(orderedLists, lists[j])
+					continue
+				}
+			}
+		}
+		ui.lists = orderedLists
+	}
+
+	for i := range ui.lists {
+		order, err := ui.db.loadItemOrder(ui.lists[i].ID)
+		if err != nil {
+			return err
+		}
+		if order == nil || len(order) == 0 || len(order) != len(ui.lists[i].items) {
 			continue
 		}
-		logToFile(fmt.Sprintf("Order: %v", order))
-		var newItems []Item
-		for index := 0; index < len(order); index++ {
-			id := order[index]
-			item := *ui.lists[i].itemById(id)
-			newItems = append(newItems, item)
+		var orderedItems []Item
+		for j := 0; j < len(order); j++ {
+			for _, item := range ui.lists[i].items {
+				if item.id == order[j] {
+					orderedItems = append(orderedItems, item)
+				}
+			}
 		}
-		ui.lists[i].items = newItems
+		ui.lists[i].items = orderedItems
 	}
+	return nil
 }
 
 func (ui *UI) handleEvent(ev tcell.Event) {
@@ -228,6 +247,14 @@ func handleNormalModeEv(ui *UI, key tcell.Key, r rune) {
 			list.markItem(ui.db)
 		} else if r == 'e' {
 			ui.mode = entryMode
+			// } else if r == 'h' {
+			// 	ui.left()
+			// } else if r == 'l' {
+			// 	ui.right()
+		} else if r == 'H' {
+			ui.switchListLeft()
+		} else if r == 'L' {
+			ui.switchListRight()
 		}
 	}
 }
@@ -313,7 +340,7 @@ func renderCurrentList(ui *UI) {
 		ui.renderLine("Press l + n to create a new list", headerHeight-4)
 		return
 	}
-	ui.lists[ui.current].render(ui)
+	ui.currentList().render(ui)
 }
 
 func renderListNav(ui *UI) {
@@ -480,4 +507,32 @@ func (ui *UI) exit() {
 	ui.saveOrder()
 	ui.screen.Fini()
 	os.Exit(0)
+}
+
+func (ui *UI) left() {
+	if ui.current > 0 {
+		ui.current--
+	}
+}
+
+func (ui *UI) right() {
+	if ui.current < len(ui.lists)-1 {
+		ui.current++
+	}
+}
+
+func (ui *UI) switchListLeft() {
+	if ui.current == 0 {
+		return
+	}
+	ui.lists[ui.current], ui.lists[ui.current-1] = ui.lists[ui.current-1], ui.lists[ui.current]
+	ui.current--
+}
+
+func (ui *UI) switchListRight() {
+	if ui.current == len(ui.lists)-1 {
+		return
+	}
+	ui.lists[ui.current], ui.lists[ui.current+1] = ui.lists[ui.current+1], ui.lists[ui.current]
+	ui.current++
 }
