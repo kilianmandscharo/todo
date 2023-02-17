@@ -30,6 +30,24 @@ const bottomOffset = 1
 
 const navPosition = 1
 
+var modeTitleMap = map[Mode]string{
+	normalMode:       "Normal",
+	listMode:         "List",
+	entryMode:        "Entry",
+	editListNameMode: "List",
+	deleteListMode:   "List",
+	editMode:         "Entry",
+}
+
+var modeStyleMap = map[Mode]tcell.Style{
+	normalMode:       lightDark,
+	listMode:         tertiaryLight,
+	entryMode:        secondaryLight,
+	editListNameMode: tertiaryLight,
+	deleteListMode:   tertiaryLight,
+	editMode:         secondaryLight,
+}
+
 type UI struct {
 	screen       tcell.Screen
 	db           *DB
@@ -312,12 +330,12 @@ func renderListNav(ui *UI) {
 	if len(ui.lists) != 0 {
 		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, darkPrimary)
 	} else {
-		renderTopSeparator(ui, separator(ui, ""), 5)
+		renderTopSeparator(ui, separator(ui, "", 0), 5)
 	}
 }
 
-func separator(ui *UI, s string) string {
-	w := ui.width()
+func separator(ui *UI, s string, offset int) string {
+	w := ui.width() - offset
 	var line bytes.Buffer
 	var spaceTaken int
 	if w-2 < len(s) {
@@ -330,23 +348,6 @@ func separator(ui *UI, s string) string {
 		line.WriteRune(' ')
 	}
 	return line.String()
-}
-
-func renderBottomSeparator(ui *UI, line string, ypos int) {
-	var style tcell.Style
-	if ui.mode == normalMode {
-		style = primaryLight
-	} else {
-		style = secondaryLight
-	}
-	for col, r := range []rune(line) {
-		ui.screen.SetContent(
-			col+leftOffset,
-			ypos,
-			r,
-			nil,
-			style)
-	}
 }
 
 func renderTopSeparator(ui *UI, line string, ypos int) {
@@ -370,13 +371,13 @@ func renderFooter(ui *UI) {
 	footerYPos := ui.height() - 2
 	var line string
 	if ui.mode == listMode {
-		line = "List: (n)ew - (d)elete - (e)dit - (b)ack"
+		line = "(n)ew - (d)elete - (e)dit - (b)ack"
 	} else if ui.mode == entryMode {
-		line = "Entry: (n)ew - (d)elete - (e)dit - (b)ack"
+		line = "(n)ew - (d)elete - (e)dit - (b)ack"
 	} else if ui.mode == deleteListMode {
 		line = "Delete current list? y / n"
 	} else if ui.mode == editListNameMode {
-		line = "Editing list name... - (esc)ape"
+		line = "Editing name... - (esc)ape"
 	} else if ui.mode == editMode {
 		line = "Editing entry... - (esc)ape"
 	} else if len(ui.lists) != 0 {
@@ -386,7 +387,20 @@ func renderFooter(ui *UI) {
 		}
 		line += " - e(x)it"
 	}
-	renderBottomSeparator(ui, separator(ui, line), footerYPos)
+	modeString := padChunk(modeTitleMap[ui.mode])
+	line = separator(ui, padChunk(line), len(modeString))
+	renderChunk(ui, modeString, modeStyleMap[ui.mode], 0, footerYPos)
+	renderChunk(ui, line, primaryLight, len(modeString), footerYPos)
+}
+
+func renderChunk(ui *UI, s string, style tcell.Style, col, row int) {
+	for i, r := range []rune(s) {
+		ui.screen.SetContent(col+i+leftOffset, row, r, nil, style)
+	}
+}
+
+func padChunk(s string) string {
+	return " " + s + " "
 }
 
 func (ui *UI) enterEdit() {

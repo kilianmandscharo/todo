@@ -29,7 +29,7 @@ func renderHeader(ui *UI, l *List) {
 	for col, r := range []rune(l.name + " ") {
 		var style tcell.Style
 		if ui.mode == editListNameMode && col == l.col {
-			style = secondaryLight
+			style = tertiaryLight
 		} else {
 			style = darkLight
 		}
@@ -47,9 +47,9 @@ func renderHeader(ui *UI, l *List) {
 				done++
 			}
 		}
-		topLine = fmt.Sprintf("%d / %d done", done, total)
+		topLine = padChunk(fmt.Sprintf("%d / %d done", done, total)) 
 	}
-	renderTopSeparator(ui, separator(ui, topLine), 5)
+	renderTopSeparator(ui, separator(ui, topLine, 0), 5)
 }
 
 func renderBody(ui *UI, l *List) {
