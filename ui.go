@@ -14,11 +14,9 @@ type Mode int
 
 const (
 	normalMode Mode = iota
-	listMode
-	entryMode
+	editMode
 	editListNameMode
 	deleteListMode
-	editMode
 )
 
 const headerHeight = 6
@@ -31,18 +29,14 @@ const navPosition = 1
 
 var modeTitleMap = map[Mode]string{
 	normalMode:       "Normal",
-	listMode:         "List",
-	entryMode:        "Entry",
-	editListNameMode: "List",
-	deleteListMode:   "List",
-	editMode:         "Entry",
+	editListNameMode: "Insert",
+	deleteListMode:   "Delete",
+	editMode:         "Inser",
 }
 
 var modeStyleMap = map[Mode]tcell.Style{
 	normalMode:       lightDark,
-	listMode:         tertiaryLight,
-	entryMode:        secondaryLight,
-	editListNameMode: tertiaryLight,
+	editListNameMode: secondaryLight,
 	deleteListMode:   tertiaryLight,
 	editMode:         secondaryLight,
 }
@@ -98,10 +92,16 @@ func (ui *UI) show() {
 }
 
 func (ui *UI) currentList() *List {
+	if len(ui.lists) == 0 {
+		return nil
+	}
 	return &ui.lists[ui.current]
 }
 
 func (ui *UI) switchList(r rune) {
+	if !unicode.IsDigit(r) || r == '0' {
+		return
+	}
 	val := int(r - '0')
 	if val > len(ui.lists) {
 		return
@@ -210,10 +210,6 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 		switch ui.mode {
 		case normalMode:
 			handleNormalModeEv(ui, ev.Key(), ev.Rune())
-		case listMode:
-			handleListModeEv(ui, ev.Key(), ev.Rune())
-		case entryMode:
-			handleEntryModeEv(ui, ev.Key(), ev.Rune())
 		case editListNameMode:
 			handleEditListNameModeEv(ui, ev.Key(), ev.Rune())
 		case deleteListMode:
@@ -227,64 +223,38 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 func handleNormalModeEv(ui *UI, key tcell.Key, r rune) {
 	if r == 'x' {
 		ui.exit()
-	}
-	if r == 'l' {
-		ui.mode = listMode
-	}
-	if len(ui.lists) != 0 {
-		list := ui.currentList()
-		if unicode.IsDigit(r) {
-			ui.switchList(r)
-		} else if r == 'j' {
-			list.down(ui)
-		} else if r == 'k' {
-			list.up(ui)
-		} else if r == 'J' {
-			list.switchDown(ui)
-		} else if r == 'K' {
-			list.switchUp(ui)
-		} else if r == 13 {
-			list.markItem(ui.db)
-		} else if r == 'e' {
-			ui.mode = entryMode
-			// } else if r == 'h' {
-			// 	ui.left()
-			// } else if r == 'l' {
-			// 	ui.right()
-		} else if r == 'H' {
-			ui.switchListLeft()
-		} else if r == 'L' {
-			ui.switchListRight()
-		}
-	}
-}
-
-func handleListModeEv(ui *UI, key tcell.Key, r rune) {
-	if r == 'd' && len(ui.lists) != 0 {
-		ui.mode = deleteListMode
-	} else if r == 'n' {
-		ui.addList()
-		ui.mode = normalMode
-	} else if r == 'e' && len(ui.lists) != 0 {
+	} else if r == 'h' {
+		ui.left()
+	} else if r == 'l' {
+		ui.right()
+	} else if r == 'H' {
+		ui.switchListLeft()
+	} else if r == 'L' {
+		ui.switchListRight()
+	} else if r == 'D' {
+		ui.enterDeleteListMode()
+	} else if r == 'I' {
 		ui.enterNameEdit()
-	} else if r == 'b' || key == tcell.KeyEsc {
-		ui.mode = normalMode
-	}
-}
-
-func handleEntryModeEv(ui *UI, key tcell.Key, r rune) {
-	if r == 'd' && len(ui.currentList().items) != 0 {
-		ui.currentList().delete(ui.db, ui)
-		ui.mode = normalMode
+	} else if r == 'N' {
+		ui.addList()
+	} else if r == 'j' {
+		ui.listDown()
+	} else if r == 'k' {
+		ui.listUp()
+	} else if r == 'J' {
+		ui.listSwitchDown()
+	} else if r == 'K' {
+		ui.listSwitchUp()
 	} else if r == 'n' {
-		list := ui.currentList()
-		list.add(ui.db, ui)
-		list.down(ui)
-		ui.mode = editMode
-	} else if r == 'e' && len(ui.currentList().items) != 0 {
+		ui.listAddEntry()
+	} else if r == 'd' {
+		ui.listDeleteEntry()
+	} else if r == 'i' {
 		ui.enterEdit()
-	} else if r == 'b' || key == tcell.KeyEsc {
-		ui.mode = normalMode
+	} else if r == 13 {
+		ui.listMarkEntry()
+	} else {
+		ui.switchList(r)
 	}
 }
 
@@ -325,7 +295,56 @@ func handleEditModeEv(ui *UI, key tcell.Key, r rune) {
 	} else {
 		list.addRune(r)
 	}
+}
 
+func (ui *UI) listDeleteEntry() {
+	if list := ui.currentList(); list != nil {
+		list.delete(ui.db, ui)
+	}
+}
+
+func (ui *UI) listMarkEntry() {
+	if list := ui.currentList(); list != nil {
+		list.markItem(ui.db)
+	}
+}
+
+func (ui *UI) listAddEntry() {
+	if list := ui.currentList(); list != nil {
+		list.add(ui.db, ui)
+		list.down(ui)
+		ui.mode = editMode
+	}
+}
+
+func (ui *UI) listDown() {
+	if list := ui.currentList(); list != nil {
+		list.down(ui)
+	}
+}
+
+func (ui *UI) listUp() {
+	if list := ui.currentList(); list != nil {
+		list.up(ui)
+	}
+}
+
+func (ui *UI) listSwitchDown() {
+	if list := ui.currentList(); list != nil {
+		list.switchDown(ui)
+	}
+}
+
+func (ui *UI) listSwitchUp() {
+	if list := ui.currentList(); list != nil {
+		list.switchUp(ui)
+	}
+}
+
+func (ui *UI) enterDeleteListMode() {
+	if len(ui.lists) != 0 {
+		ui.mode = deleteListMode
+	}
 }
 
 func (ui *UI) render() {
@@ -337,7 +356,7 @@ func (ui *UI) render() {
 
 func renderCurrentList(ui *UI) {
 	if len(ui.lists) == 0 {
-		ui.renderLine("Press l + n to create a new list", headerHeight-4)
+		ui.renderLine("Press N to create a new list", headerHeight-4)
 		return
 	}
 	ui.currentList().render(ui)
@@ -397,21 +416,14 @@ func (ui *UI) renderLine(line string, row int) {
 func renderFooter(ui *UI) {
 	footerYPos := ui.height() - 2
 	var line string
-	if ui.mode == listMode {
-		line = "(n)ew - (d)elete - (e)dit - (b)ack"
-	} else if ui.mode == entryMode {
-		line = "(n)ew - (d)elete - (e)dit - (b)ack"
-	} else if ui.mode == deleteListMode {
+	if ui.mode == deleteListMode {
 		line = "Delete current list? y / n"
 	} else if ui.mode == editListNameMode {
-		line = "Editing name... - (esc)ape"
+		line = "List name ... - (esc)ape"
 	} else if ui.mode == editMode {
-		line = "Editing entry... - (esc)ape"
+		line = "Entry name ... - (esc)ape"
 	} else if len(ui.lists) != 0 {
-		line = "(enter) mark - (l)ist mode"
-		if len(ui.currentList().items) != 0 {
-			line += " - (e)ntry mode"
-		}
+		line = "(enter) mark"
 		line += " - e(x)it"
 	}
 	modeString := padChunk(modeTitleMap[ui.mode])
@@ -431,14 +443,15 @@ func padChunk(s string) string {
 }
 
 func (ui *UI) enterEdit() {
-	l := ui.currentList()
-	itemLength := len(l.currentItem().content)
-	if itemLength == 1 && l.currentItem().content[0] == ' ' {
-		l.col = 0
-	} else {
-		l.col = itemLength
+	if l := ui.currentList(); l != nil && len(l.items) != 0 {
+		itemLength := len(l.currentItem().content)
+		if itemLength == 1 && l.currentItem().content[0] == ' ' {
+			l.col = 0
+		} else {
+			l.col = itemLength
+		}
+		ui.mode = editMode
 	}
-	ui.mode = editMode
 }
 
 func (ui *UI) exitEdit() {
@@ -448,6 +461,9 @@ func (ui *UI) exitEdit() {
 }
 
 func (ui *UI) enterNameEdit() {
+	if len(ui.lists) == 0 {
+		return
+	}
 	l := ui.currentList()
 	if len(l.name) == 1 && l.name[0] == ' ' {
 		l.col = 0
@@ -512,12 +528,14 @@ func (ui *UI) exit() {
 func (ui *UI) left() {
 	if ui.current > 0 {
 		ui.current--
+		ui.calculateWindow()
 	}
 }
 
 func (ui *UI) right() {
 	if ui.current < len(ui.lists)-1 {
 		ui.current++
+		ui.calculateWindow()
 	}
 }
 

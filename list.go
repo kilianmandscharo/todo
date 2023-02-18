@@ -54,7 +54,7 @@ func renderHeader(ui *UI, l *List) {
 
 func renderBody(ui *UI, l *List) {
 	if len(l.items) == 0 {
-		ui.renderLine("Press e + n to create an entry", headerHeight)
+		ui.renderLine("Press n to create an entry", headerHeight)
 	}
 	for row, item := range l.items[ui.windowTop:ui.windowBottom] {
 		rowWithOffset := row + topOffset + headerHeight
