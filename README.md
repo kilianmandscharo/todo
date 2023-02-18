@@ -4,7 +4,7 @@ The application saves its data in a local sqlite db file
 
 ## Install
 
-1. Install go according to [the instructions on the official website](https://go.dev/doc/install).
+1. Install go according to [the instructions on the official website](https://go.dev/doc/install)
 2. Clone this repository into $GOPATH/src
 3. Install according to your system specifications with the `go install` command
 4. Add the $GOPATH/bin to your $PATH variable to make the binary a global command
@@ -12,27 +12,46 @@ The application saves its data in a local sqlite db file
 
 ## Shortcuts
 
-n -- create new entry
-N -- create new list
+`n` -- create new entry
 
-d -- delete entry
-D -- delete list
+`N` -- create new list
 
-i -- edit entry
-I -- edit list name
+---
 
-j -- go one entry down
-J -- switch the entry with the one below
-k -- go one entry up
-K -- switch the entry with the one above
+`d` -- delete entry
 
-h -- go one list to the left
-H -- switch the list with the one to the left
-l -- go one list to the right
-L -- switch the list with the one to the right
+`D` -- delete list
 
-enter -- toggle entry
+---
 
-0-9 -- switch to the list if it exists
+`i` -- edit entry
 
-x -- exit
+`I` -- edit list name
+
+---
+
+`j` -- go one entry down
+
+`J` -- switch the entry with the one below
+
+`k` -- go one entry up
+
+`K` -- switch the entry with the one above
+
+---
+
+`h` -- go one list to the left
+
+`H` -- switch the list with the one to the left
+
+`l` -- go one list to the right
+
+`L` -- switch the list with the one to the right
+
+---
+
+`enter` -- toggle entry
+
+`0-9` -- switch to the list if it exists
+
+`x` -- exit
