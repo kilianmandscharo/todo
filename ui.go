@@ -422,9 +422,9 @@ func renderFooter(ui *UI) {
 	if ui.mode == deleteListMode {
 		line = "Delete current list? y / n"
 	} else if ui.mode == editListNameMode {
-		line = "List name ... - (esc)ape"
+		line = "List name - (esc)ape"
 	} else if ui.mode == editMode {
-		line = "Entry name ... - (esc)ape"
+		line = "Entry name - (esc)ape"
 	} else if len(ui.lists) != 0 {
 		line = "(enter) mark"
 		line += " - e(x)it"
