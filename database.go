@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"os"
+	"path"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -13,8 +14,12 @@ type DB struct {
 }
 
 func newDatabase() (*DB, error) {
-	os.Mkdir("todo_data", os.ModePerm)
-	db, err := sql.Open("sqlite3", "todo_data/data.db")
+    homeDir, err := os.UserHomeDir()
+    if err != nil {
+        return nil, err
+    }
+	os.Mkdir(path.Join(homeDir, ".todo_data"), os.ModePerm)
+	db, err := sql.Open("sqlite3", path.Join(homeDir, ".todo_data/data.db"))
 	if err != nil {
 		return nil, err
 	}
