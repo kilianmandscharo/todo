@@ -24,14 +24,13 @@ const footerHeight = 2
 const leftOffset = 1
 const topOffset = 1
 const bottomOffset = 1
-
 const navPosition = 1
 
 var modeTitleMap = map[Mode]string{
 	normalMode:       "Normal",
 	editListNameMode: "Insert",
 	deleteListMode:   "Delete",
-	editMode:         "Inser",
+	editMode:         "Insert",
 }
 
 var modeStyleMap = map[Mode]tcell.Style{
@@ -119,6 +118,10 @@ func (ui *UI) addList() {
 		return
 	}
 	ui.lists = append(ui.lists, List{ID: id, name: "List name"})
+    ui.current = len(ui.lists) - 1
+    ui.calculateWindow()
+    ui.mode = editListNameMode
+    ui.currentList().name = " "
 }
 
 func (ui *UI) deleteList() {

@@ -29,7 +29,7 @@ func renderHeader(ui *UI, l *List) {
 	for col, r := range []rune(l.name + " ") {
 		var style tcell.Style
 		if ui.mode == editListNameMode && col == l.col {
-			style = tertiaryLight
+			style = secondaryLight
 		} else {
 			style = darkLight
 		}
@@ -279,7 +279,11 @@ func (l *List) cursorLeftEntry() {
 }
 
 func (l *List) cursorRightEntry() {
-	if l.col < len(l.currentItem().content) {
+    content := l.currentItem().content
+    if len(content) == 1 && content[0] == ' ' {
+        return
+    } 
+	if l.col < len(content) {
 		l.col++
 	}
 }
@@ -291,6 +295,9 @@ func (l *List) cursorLeftListName() {
 }
 
 func (l *List) cursorRightListName() {
+    if len(l.name) == 1 && l.name[0] == ' ' {
+        return
+    } 
 	if l.col < len(l.name) {
 		l.col++
 	}
