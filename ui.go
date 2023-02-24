@@ -17,7 +17,6 @@ const (
 	editMode
 	editListNameMode
 	deleteListMode
-    controlsMode
 )
 
 const headerHeight = 6
@@ -119,10 +118,10 @@ func (ui *UI) addList() {
 		return
 	}
 	ui.lists = append(ui.lists, List{ID: id, name: "List name"})
-    ui.current = len(ui.lists) - 1
-    ui.calculateWindow()
-    ui.mode = editListNameMode
-    ui.currentList().name = " "
+	ui.current = len(ui.lists) - 1
+	ui.calculateWindow()
+	ui.mode = editListNameMode
+	ui.currentList().name = " "
 }
 
 func (ui *UI) deleteList() {
@@ -220,8 +219,6 @@ func (ui *UI) handleEvent(ev tcell.Event) {
 			handleDeleteListModeEv(ui, ev.Key(), ev.Rune())
 		case editMode:
 			handleEditModeEv(ui, ev.Key(), ev.Rune())
-		case controlsMode:
-			handleControlsModeEv(ui, ev.Key(), ev.Rune())
 		}
 	}
 }
@@ -259,9 +256,7 @@ func handleNormalModeEv(ui *UI, key tcell.Key, r rune) {
 		ui.enterEdit()
 	} else if r == 13 {
 		ui.listMarkEntry()
-	} else if r == 'c' {
-        ui.enterControlsMode()
-    } else {
+	} else {
 		ui.switchList(r)
 	}
 }
@@ -303,22 +298,6 @@ func handleEditModeEv(ui *UI, key tcell.Key, r rune) {
 	} else {
 		list.addRune(r)
 	}
-}
-
-func handleControlsModeEv(ui *UI, key tcell.Key, r rune) {
-    if key == tcell.KeyEscape || r == 'c' {
-        ui.exitControlsMode()
-    } else if r == 'x' {
-        ui.exit()
-    }
-}
-
-func (ui *UI) enterControlsMode() {
-    ui.mode = controlsMode
-}
-
-func (ui *UI) exitControlsMode() {
-    ui.mode = normalMode
 }
 
 func (ui *UI) listDeleteEntry() {
@@ -372,61 +351,9 @@ func (ui *UI) enterDeleteListMode() {
 }
 
 func (ui *UI) render() {
-    if (ui.mode == controlsMode) {
-        renderControls(ui)
-    } else {
-        renderListNav(ui)
-        renderCurrentList(ui)
-        renderFooter(ui)
-    }
-}
-
-func renderControls(ui *UI) {
-    botBarY := ui.height() - 2
-    topBarY := headerHeight - 1
-    renderChunk(ui, "Controls", darkLight, 0, topBarY - 2)
-    renderChunk(ui, separator(ui, "", 0), primaryLight, 0, topBarY)
-    renderChunk(ui, separator(ui, padChunk("(esc)ape"), 0), primaryLight, 0, botBarY)
-
-    renderChunk(ui, newItem[0], darkLight, 0, headerHeight + 1)
-    renderChunk(ui, newItem[1], darkLight, 7, headerHeight + 1)
-    renderChunk(ui, newList[0], darkLight, 0, headerHeight + 2)
-    renderChunk(ui, newList[1], darkLight, 7, headerHeight + 2)
-
-    renderChunk(ui, deleteItem[0], darkLight, 0, headerHeight + 4)
-    renderChunk(ui, deleteItem[1], darkLight, 7, headerHeight + 4)
-    renderChunk(ui, deleteList[0], darkLight, 0, headerHeight + 5)
-    renderChunk(ui, deleteList[1], darkLight, 7, headerHeight + 5)
-
-    renderChunk(ui, editItem[0], darkLight, 0, headerHeight + 7)
-    renderChunk(ui, editItem[1], darkLight, 7, headerHeight + 7)
-    renderChunk(ui, editList[0], darkLight, 0, headerHeight + 8)
-    renderChunk(ui, editList[1], darkLight, 7, headerHeight + 8)
-
-    renderChunk(ui, itemDown[0], darkLight, 0, headerHeight + 10)
-    renderChunk(ui, itemDown[1], darkLight, 7, headerHeight + 10)
-    renderChunk(ui, itemUp[0], darkLight, 0, headerHeight + 11)
-    renderChunk(ui, itemUp[1], darkLight, 7, headerHeight + 11)
-    renderChunk(ui, itemSwitchDown[0], darkLight, 0, headerHeight + 12)
-    renderChunk(ui, itemSwitchDown[1], darkLight, 7, headerHeight + 12)
-    renderChunk(ui, itemSwitchUp[0], darkLight, 0, headerHeight + 13)
-    renderChunk(ui, itemSwitchUp[1], darkLight, 7, headerHeight + 13)
-
-    renderChunk(ui, listLeft[0], darkLight, 0, headerHeight + 15)
-    renderChunk(ui, listLeft[1], darkLight, 7, headerHeight + 15)
-    renderChunk(ui, listRight[0], darkLight, 0, headerHeight + 16)
-    renderChunk(ui, listRight[1], darkLight, 7, headerHeight + 16)
-    renderChunk(ui, listSwitchLeft[0], darkLight, 0, headerHeight + 17)
-    renderChunk(ui, listSwitchLeft[1], darkLight, 7, headerHeight + 17)
-    renderChunk(ui, listSwitchRight[0], darkLight, 0, headerHeight + 18)
-    renderChunk(ui, listSwitchRight[1], darkLight, 7, headerHeight + 18)
-
-    renderChunk(ui, switchList[0], darkLight, 0, headerHeight + 20)
-    renderChunk(ui, switchList[1], darkLight, 7, headerHeight + 20)
-    renderChunk(ui, mark[0], darkLight, 0, headerHeight + 21)
-    renderChunk(ui, mark[1], darkLight, 7, headerHeight + 21)
-    renderChunk(ui, exit[0], darkLight, 0, headerHeight + 22)
-    renderChunk(ui, exit[1], darkLight, 7, headerHeight + 22)
+  renderListNav(ui)
+  renderCurrentList(ui)
+  renderFooter(ui)
 }
 
 func renderCurrentList(ui *UI) {

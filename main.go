@@ -1,10 +1,20 @@
 package main
 
 import (
+	"flag"
 	"os"
 )
 
+var cFlag = flag.Bool("controls", false, "set to print controls overview")
+
 func main() {
+	flag.Parse()
+
+	if *cFlag {
+		printKeymaps()
+		return
+	}
+
 	var debug bool
 	if len(os.Args) > 1 {
 		debug = os.Args[1] == "debug"
