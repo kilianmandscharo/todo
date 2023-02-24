@@ -35,9 +35,9 @@ var modeTitleMap = map[Mode]string{
 
 var modeStyleMap = map[Mode]tcell.Style{
 	normalMode:       lightDark,
-	editListNameMode: secondaryLight,
-	deleteListMode:   tertiaryLight,
-	editMode:         secondaryLight,
+	editListNameMode: secondaryDark,
+	deleteListMode:   tertiaryDark,
+	editMode:         secondaryDark,
 }
 
 type UI struct {
@@ -368,7 +368,7 @@ func renderListNav(ui *UI) {
 	var style tcell.Style
 	for i := range ui.lists {
 		if i == ui.current {
-			style = primaryLight
+			style = lightDark
 		} else {
 			style = darkLight
 		}
@@ -376,7 +376,7 @@ func renderListNav(ui *UI) {
 		ui.screen.SetContent(i*2+leftOffset, 1, []rune(r)[0], nil, style)
 	}
 	if len(ui.lists) != 0 {
-		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, darkPrimary)
+		ui.screen.SetContent(ui.current*2+leftOffset, 2, '^', nil, darkLight)
 	} else {
 		renderTopSeparator(ui, separator(ui, "", 0), 5)
 	}
