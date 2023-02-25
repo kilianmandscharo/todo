@@ -425,7 +425,7 @@ func renderFooter(ui *UI) {
 	} else if ui.mode == editMode {
 		line = "Entry name - (esc)ape"
 	} else if len(ui.lists) != 0 {
-		line = "(enter) mark - e(x)it - (c)ontrols"
+		line = "(enter) mark - e(x)it"
 	}
 	modeString := padChunk(modeTitleMap[ui.mode])
 	line = separator(ui, padChunk(line), len(modeString))
